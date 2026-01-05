@@ -2,20 +2,20 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
-import { JWT_EXPIRY, JWT_SECRET } from "../config/env.js";
+import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY } from "../config/env.js";
 
-export const signUp = async (req, res) => {
+const generateTokens = (userId) => {
+    const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+    const refreshToken = jwt.sign({ userId }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRY });
+    return { accessToken, refreshToken };
+};
+
+export const signUp = async (req, res, next) => {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         const {name, email, password} = req.body;
-        if (!name || !email || !password) {
-            res.status(400).json({
-                success: false,
-                message: "Missing details"
-            })
-        };
 
         const existingUser = await User.findOne({email});
         if (existingUser) {
@@ -26,41 +26,48 @@ export const signUp = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = await User.create({name, email, password: hashedPassword});
+        const { accessToken, refreshToken } = generateTokens('temp-id'); // We'll update this after creation
 
-        const token = jwt.sign({userId: newUser._id}, JWT_SECRET, {expiresIn: JWT_EXPIRY});
+        const newUsers = await User.create([{ name, email, password: hashedPassword, refreshToken }], { session });
 
-       await session.commitTransaction();
-       session.endSession();
+        const tokens = generateTokens(newUsers[0]._id);
+        newUsers[0].refreshToken = tokens.refreshToken;
+        await newUsers[0].save({ session });
 
-        console.log("User created succesfully!");
+        await session.commitTransaction();
+        session.endSession();
 
-       res.status(201).json({
-        success: true,
-        message: "User signed up successfully!",
-        data: {
-            newUser,
-            token
-        }
-       });
+        newUsers[0].password = undefined;
+        newUsers[0].refreshToken = undefined;
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "User signed up successfully!",
+            data: {
+                user: newUsers[0],
+                accessToken: tokens.accessToken
+            }
+        });
 
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        console.log("Error signing up: ", error);
+        next(error);
     }
 }
 
-export const signIn = async (req, res) => {
+export const signIn = async (req, res, next) => {
     try {
         const {email, password} = req.body;
-        if (!email || !password) {
-            const error = new Error("Missing details");
-            error.statusCode = 400;
-            throw error;
-        };
 
-        const existingUser = await User.findOne({email});
+        const existingUser = await User.findOne({email}).select('+password');
         if (!existingUser) {
             const error = new Error("User does not exist");
             error.statusCode = 404;
@@ -74,27 +81,39 @@ export const signIn = async (req, res) => {
             throw error;
         }
 
-        const token = jwt.sign({userId: existingUser._id}, JWT_SECRET, {expiresIn: JWT_EXPIRY});
+        const tokens = generateTokens(existingUser._id);
+        existingUser.refreshToken = tokens.refreshToken;
+        await existingUser.save();
+
+        existingUser.password = undefined;
+        existingUser.refreshToken = undefined;
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
         res.status(200).json({
             success: true,
             message: "User signed in successfully!",
             data: {
-                existingUser,
-                token
+                user: existingUser,
+                accessToken: tokens.accessToken
             }
         });
         
     } catch (error) {
-        console.log("Error signing in: ", error);
+        next(error);
     }
 }
 
-export const signOut = async (req, res) => {
+export const signOut = async (req, res, next) => {
    try {
-    res.clearCookie("token", {
+    res.clearCookie("refreshToken", {
         httpOnly: true,
-        sameSite: true,
+        sameSite: 'strict',
         secure: NODE_ENV === "production"
     })
 
@@ -104,6 +123,46 @@ export const signOut = async (req, res) => {
     });
     
    } catch (error) {
-    console.log("Error logging out: ", error)
+    next(error);
    }
 }
+
+export const refresh = async (req, res, next) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            const error = new Error('Refresh token not found');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+
+        const user = await User.findById(decoded.userId).select('+refreshToken');
+
+        if (!user || user.refreshToken !== refreshToken) {
+            const error = new Error('Invalid refresh token');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const tokens = generateTokens(user._id);
+        user.refreshToken = tokens.refreshToken;
+        await user.save();
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        res.status(200).json({
+            success: true,
+            accessToken: tokens.accessToken
+        });
+    } catch (error) {
+        next(error);
+    }
+};
