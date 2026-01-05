@@ -2,11 +2,12 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import limiter from "./middlewares/limit.middleware.js";
-import { PORT } from "./config/env.js";
-import connectToDB from "./database/mongodb.js";
+import { PORT, FRONTEND_URL } from "./config/env.js";
 import authRouter from "./routes/auth.routes.js";
 import userRouter from "./routes/user.routes.js";
+import contactRouter from "./routes/contact.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
+import passport from "./config/passport.js";
 
 const app = express();
 
@@ -15,10 +16,12 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser());
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(passport.initialize());
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/contacts", contactRouter);
 
 app.use(errorMiddleware);
 
@@ -29,9 +32,9 @@ app.get("/", (req, res)=>{
   });
 
 })
+
 app.listen(PORT, async ()=>{
   console.log(`The Duuka Backend API is running on http://localhost:${PORT}`);
-  await connectToDB();
 });
 
 export default app;

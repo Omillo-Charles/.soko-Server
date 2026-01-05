@@ -1,17 +1,13 @@
 import mongoose from "mongoose";
-import { MONGODB_URI_USERS } from "../config/env.js";
+import { MONGODB_URI_USERS, MONGODB_URI_CONTACT } from "../config/env.js";
 
-if (!MONGODB_URI_USERS) {
-    throw new Error("Please add the MONGODB URI in the env variables!");
-}
+const userConnection = mongoose.createConnection(MONGODB_URI_USERS);
+const contactConnection = mongoose.createConnection(MONGODB_URI_CONTACT);
 
-const connectToDB = async () => {
-    try {
-        await mongoose.connect(MONGODB_URI_USERS);
-        console.log("Connected to the MongoDB database!");
-    } catch (error) {
-        console.log("Error connecting to the MongoDB database: ", error);
-    }
-}
+userConnection.on('connected', () => console.log('Connected to Users database'));
+contactConnection.on('connected', () => console.log('Connected to Contacts database'));
 
-export default connectToDB;
+userConnection.on('error', (err) => console.error('Users database connection error:', err));
+contactConnection.on('error', (err) => console.error('Contacts database connection error:', err));
+
+export { userConnection, contactConnection };

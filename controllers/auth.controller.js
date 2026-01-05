@@ -1,8 +1,8 @@
-import mongoose from "mongoose";
+import { userConnection } from "../database/mongodb.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
-import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY } from "../config/env.js";
+import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
 
 const generateTokens = (userId) => {
     const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -11,7 +11,7 @@ const generateTokens = (userId) => {
 };
 
 export const signUp = async (req, res, next) => {
-    const session = await mongoose.startSession();
+    const session = await userConnection.startSession();
     session.startTransaction();
 
     try {
@@ -162,6 +162,45 @@ export const refresh = async (req, res, next) => {
             success: true,
             accessToken: tokens.accessToken
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const googleAuthSuccess = async (req, res, next) => {
+    try {
+        const tokens = generateTokens(req.user._id);
+        req.user.refreshToken = tokens.refreshToken;
+        await req.user.save();
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        // Redirect to frontend with access token
+        res.redirect(`${FRONTEND_URL}/auth-success?token=${tokens.accessToken}`);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const githubAuthSuccess = async (req, res, next) => {
+    try {
+        const tokens = generateTokens(req.user._id);
+        req.user.refreshToken = tokens.refreshToken;
+        await req.user.save();
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.redirect(`${FRONTEND_URL}/auth-success?token=${tokens.accessToken}`);
     } catch (error) {
         next(error);
     }

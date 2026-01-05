@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { userConnection } from "../database/mongodb.js";
 
 const userSchema = mongoose.Schema({
     name: {
@@ -19,9 +20,19 @@ const userSchema = mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, "Password is required!"],
+        required: function() { return !this.googleId && !this.githubId; }, // Only required if not a social login
         minlength: 6,
         select: false,
+    },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true, // Allows multiple users to have null googleId
+    },
+    githubId: {
+        type: String,
+        unique: true,
+        sparse: true,
     },
     refreshToken: {
         type: String,
@@ -29,6 +40,6 @@ const userSchema = mongoose.Schema({
     }
 }, { timestamps: true });
 
-const User = mongoose.model("User", userSchema);
+const User = userConnection.model("User", userSchema);
 
 export default User;
