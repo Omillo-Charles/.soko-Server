@@ -1,9 +1,11 @@
 import { userConnection } from "../database/mongodb.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import User from "../models/user.model.js";
 import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
 import { sendEmail } from "../config/nodemailer.js";
+import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate } from "../utils/emailTemplates.js";
 
 const generateTokens = (userId) => {
     const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -40,11 +42,12 @@ export const signUp = async (req, res, next) => {
 
         // Send Welcome Email
         try {
+            const template = getWelcomeEmailTemplate(name);
             await sendEmail({
                 to: email,
-                subject: 'Welcome to Duuka!',
-                text: `Hi ${name}, welcome to Duuka! We are glad to have you on board.`,
-                html: `<h1>Welcome to Duuka!</h1><p>Hi ${name},</p><p>We are glad to have you on board. Start exploring our platform now!</p>`
+                subject: template.subject,
+                text: template.text,
+                html: template.html
             });
         } catch (emailError) {
             console.error('Failed to send welcome email:', emailError);
@@ -196,6 +199,88 @@ export const googleAuthSuccess = async (req, res, next) => {
 
         // Redirect to frontend with access token
         res.redirect(`${FRONTEND_URL}/auth-success?token=${tokens.accessToken}`);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            const error = new Error("User with this email does not exist");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+        await user.save();
+
+        const resetUrl = `${FRONTEND_URL}/reset-password/${resetToken}`;
+        const template = getForgotPasswordEmailTemplate(user.name, resetUrl);
+
+        try {
+            await sendEmail({
+                to: email,
+                subject: template.subject,
+                text: template.text,
+                html: template.html
+            });
+
+            res.status(200).json({
+                success: true,
+                message: "Password reset link sent to your email"
+            });
+        } catch (emailError) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpires = undefined;
+            await user.save();
+            
+            const error = new Error("Email could not be sent");
+            error.statusCode = 500;
+            throw error;
+        }
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const resetPassword = async (req, res, next) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        }).select('+resetPasswordToken +resetPasswordExpires');
+
+        if (!user) {
+            const error = new Error("Invalid or expired reset token");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Update password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Password updated successfully"
+        });
     } catch (error) {
         next(error);
     }

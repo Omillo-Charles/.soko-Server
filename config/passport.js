@@ -4,6 +4,7 @@ import { Strategy as GitHubStrategy } from 'passport-github2';
 import User from '../models/user.model.js';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL } from './env.js';
 import { sendEmail } from './nodemailer.js';
+import { getWelcomeEmailTemplate } from '../utils/emailTemplates.js';
 
 // Google Strategy
 passport.use(new GoogleStrategy({
@@ -33,11 +34,12 @@ passport.use(new GoogleStrategy({
 
                 // Send Welcome Email for Social Signup
                 try {
+                    const template = getWelcomeEmailTemplate(user.name, 'Google');
                     await sendEmail({
                         to: user.email,
-                        subject: 'Welcome to Duuka via Google!',
-                        text: `Hi ${user.name}, welcome to Duuka! We are glad you joined via Google.`,
-                        html: `<h1>Welcome to Duuka!</h1><p>Hi ${user.name},</p><p>We are glad you joined us via Google. Start exploring now!</p>`
+                        subject: template.subject,
+                        text: template.text,
+                        html: template.html
                     });
                 } catch (emailError) {
                     console.error('Failed to send social welcome email:', emailError);
@@ -78,11 +80,12 @@ passport.use(new GitHubStrategy({
 
                 // Send Welcome Email for Social Signup
                 try {
+                    const template = getWelcomeEmailTemplate(user.name, 'GitHub');
                     await sendEmail({
                         to: user.email,
-                        subject: 'Welcome to Duuka via GitHub!',
-                        text: `Hi ${user.name}, welcome to Duuka! We are glad you joined via GitHub.`,
-                        html: `<h1>Welcome to Duuka!</h1><p>Hi ${user.name},</p><p>We are glad you joined us via GitHub. Start exploring now!</p>`
+                        subject: template.subject,
+                        text: template.text,
+                        html: template.html
                     });
                 } catch (emailError) {
                     console.error('Failed to send social welcome email:', emailError);
