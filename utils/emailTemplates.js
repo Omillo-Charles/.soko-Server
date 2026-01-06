@@ -90,3 +90,29 @@ export const getForgotPasswordEmailTemplate = (name, resetUrl) => {
     text: `Hi ${name}, you requested a password reset. Use this link to reset your password: ${resetUrl}. This link expires in 1 hour.`
   };
 };
+
+export const getVerificationEmailTemplate = (name, otp) => {
+  return {
+    subject: 'Verify Your Email - Duuka',
+    html: `
+      <div style="${baseStyle}">
+        <div style="${headerStyle}">
+          <h1>Email Verification</h1>
+        </div>
+        <p>Hi <strong>${name}</strong>,</p>
+        <p>Thank you for signing up for Duuka! To complete your registration, please verify your email address by entering the following code:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #007bff; padding: 15px; border: 2px dashed #007bff; display: inline-block;">
+            ${otp}
+          </div>
+        </div>
+        <p>This code will expire in <strong>15 minutes</strong>. If you did not sign up for a Duuka account, please ignore this email.</p>
+        <p>Best regards,<br>The Duuka Team</p>
+        <div style="${footerStyle}">
+          <p>&copy; ${new Date().getFullYear()} Duuka Inc. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${name}, your verification code for Duuka is: ${otp}. This code expires in 15 minutes.`
+  };
+};

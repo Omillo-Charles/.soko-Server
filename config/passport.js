@@ -29,7 +29,8 @@ passport.use(new GoogleStrategy({
                 user = await User.create({
                     name: profile.displayName,
                     email: profile.emails[0].value,
-                    googleId: profile.id
+                    googleId: profile.id,
+                    isVerified: true // Social users are verified by the provider
                 });
 
                 // Send Welcome Email for Social Signup
@@ -75,7 +76,8 @@ passport.use(new GitHubStrategy({
                 user = await User.create({
                     name: profile.displayName || profile.username,
                     email: email,
-                    githubId: profile.id
+                    githubId: profile.id,
+                    isVerified: true // Social users are verified by the provider
                 });
 
                 // Send Welcome Email for Social Signup

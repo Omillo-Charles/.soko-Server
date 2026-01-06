@@ -5,7 +5,7 @@ import crypto from "crypto";
 import User from "../models/user.model.js";
 import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
 import { sendEmail } from "../config/nodemailer.js";
-import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate } from "../utils/emailTemplates.js";
+import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate, getVerificationEmailTemplate } from "../utils/emailTemplates.js";
 
 const generateTokens = (userId) => {
     const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -29,9 +29,20 @@ export const signUp = async (req, res, next) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+
         const { accessToken, refreshToken } = generateTokens('temp-id'); // We'll update this after creation
 
-        const newUsers = await User.create([{ name, email, password: hashedPassword, refreshToken }], { session });
+        const newUsers = await User.create([{ 
+            name, 
+            email, 
+            password: hashedPassword, 
+            refreshToken,
+            verificationOTP: otp,
+            verificationOTPExpires: otpExpires
+        }], { session });
 
         const tokens = generateTokens(newUsers[0]._id);
         newUsers[0].refreshToken = tokens.refreshToken;
@@ -40,9 +51,9 @@ export const signUp = async (req, res, next) => {
         await session.commitTransaction();
         session.endSession();
 
-        // Send Welcome Email
+        // Send Verification Email
         try {
-            const template = getWelcomeEmailTemplate(name);
+            const template = getVerificationEmailTemplate(name, otp);
             await sendEmail({
                 to: email,
                 subject: template.subject,
@@ -50,12 +61,13 @@ export const signUp = async (req, res, next) => {
                 html: template.html
             });
         } catch (emailError) {
-            console.error('Failed to send welcome email:', emailError);
-            // We don't throw here to avoid failing the signup process if email fails
+            console.error('Failed to send verification email:', emailError);
         }
 
         newUsers[0].password = undefined;
         newUsers[0].refreshToken = undefined;
+        newUsers[0].verificationOTP = undefined;
+        newUsers[0].verificationOTPExpires = undefined;
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -95,6 +107,12 @@ export const signIn = async (req, res, next) => {
         if (!isMatch) {
             const error = new Error("Incorrect password");
             error.statusCode = 400;
+            throw error;
+        }
+
+        if (!existingUser.isVerified) {
+            const error = new Error("Please verify your email before signing in");
+            error.statusCode = 401;
             throw error;
         }
 
@@ -280,6 +298,49 @@ export const resetPassword = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Password updated successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const verifyEmail = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+
+        const user = await User.findOne({ 
+            email,
+            verificationOTP: otp,
+            verificationOTPExpires: { $gt: Date.now() }
+        }).select('+verificationOTP +verificationOTPExpires');
+
+        if (!user) {
+            const error = new Error("Invalid or expired verification code");
+            error.statusCode = 400;
+            throw error;
+        }
+
+        user.isVerified = true;
+        user.verificationOTP = undefined;
+        user.verificationOTPExpires = undefined;
+        await user.save();
+
+        // Send Welcome Email after successful verification
+        try {
+            const template = getWelcomeEmailTemplate(user.name);
+            await sendEmail({
+                to: user.email,
+                subject: template.subject,
+                text: template.text,
+                html: template.html
+            });
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Email verified successfully! You can now sign in."
         });
     } catch (error) {
         next(error);
