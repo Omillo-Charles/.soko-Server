@@ -21,6 +21,7 @@
     "mongodb": "^7.0.0",
     "mongoose": "^9.1.1",
     "morgan": "~1.9.1",
+    "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",

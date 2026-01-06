@@ -17,5 +17,7 @@ export const {
     GITHUB_CLIENT_SECRET,
     GITHUB_CALLBACK_URL,
     FRONTEND_URL,
+    EMAIL_USER,
+    EMAIL_PASSWORD,
     NODE_ENV,
 } = process.env;

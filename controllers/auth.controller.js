@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
+import { sendEmail } from "../config/nodemailer.js";
 
 const generateTokens = (userId) => {
     const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -36,6 +37,19 @@ export const signUp = async (req, res, next) => {
 
         await session.commitTransaction();
         session.endSession();
+
+        // Send Welcome Email
+        try {
+            await sendEmail({
+                to: email,
+                subject: 'Welcome to Duuka!',
+                text: `Hi ${name}, welcome to Duuka! We are glad to have you on board.`,
+                html: `<h1>Welcome to Duuka!</h1><p>Hi ${name},</p><p>We are glad to have you on board. Start exploring our platform now!</p>`
+            });
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError);
+            // We don't throw here to avoid failing the signup process if email fails
+        }
 
         newUsers[0].password = undefined;
         newUsers[0].refreshToken = undefined;
