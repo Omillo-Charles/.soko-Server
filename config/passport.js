@@ -11,8 +11,10 @@ passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
     callbackURL: GOOGLE_CALLBACK_URL,
-    proxy: true
-}, async (accessToken, refreshToken, profile, done) => {
+    proxy: true,
+    passReqToCallback: true,
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+}, async (req, accessToken, refreshToken, profile, done) => {
     try {
         let user = await User.findOne({ googleId: profile.id });
 

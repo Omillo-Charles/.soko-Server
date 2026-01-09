@@ -6,6 +6,8 @@ import { PORT, FRONTEND_URL } from "./config/env.js";
 import authRouter from "./routes/auth.routes.js";
 import userRouter from "./routes/user.routes.js";
 import contactRouter from "./routes/contact.routes.js";
+import shopRouter from "./routes/shop.routes.js";
+import productRouter from "./routes/product.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import passport from "./config/passport.js";
 
@@ -22,6 +24,8 @@ app.use(passport.initialize());
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/contacts", contactRouter);
+app.use("/api/v1/shops", shopRouter);
+app.use("/api/v1/products", productRouter);
 
 app.use(errorMiddleware);
 

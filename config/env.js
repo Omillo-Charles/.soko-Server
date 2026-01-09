@@ -6,6 +6,7 @@ export const {
     PORT,
     MONGODB_URI_USERS,
     MONGODB_URI_CONTACT,
+    MONGODB_URI_PRODUCTS,
     JWT_SECRET,
     JWT_EXPIRY,
     JWT_REFRESH_SECRET,
@@ -20,4 +21,7 @@ export const {
     EMAIL_USER,
     EMAIL_PASSWORD,
     NODE_ENV,
+    CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET,
 } = process.env;

@@ -215,8 +215,14 @@ export const googleAuthSuccess = async (req, res, next) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        // Redirect to frontend with access token
-        res.redirect(`${FRONTEND_URL}/auth-success?token=${tokens.accessToken}`);
+        // Redirect to frontend with access token and user data
+        const userData = JSON.stringify({
+            _id: req.user._id,
+            name: req.user.name,
+            email: req.user.email,
+            isVerified: req.user.isVerified
+        });
+        res.redirect(`${FRONTEND_URL}/auth?mode=social-success&token=${tokens.accessToken}&user=${encodeURIComponent(userData)}`);
     } catch (error) {
         next(error);
     }
@@ -360,7 +366,14 @@ export const githubAuthSuccess = async (req, res, next) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        res.redirect(`${FRONTEND_URL}/auth-success?token=${tokens.accessToken}`);
+        // Redirect to frontend with access token and user data
+        const userData = JSON.stringify({
+            _id: req.user._id,
+            name: req.user.name,
+            email: req.user.email,
+            isVerified: req.user.isVerified
+        });
+        res.redirect(`${FRONTEND_URL}/auth?mode=social-success&token=${tokens.accessToken}&user=${encodeURIComponent(userData)}`);
     } catch (error) {
         next(error);
     }

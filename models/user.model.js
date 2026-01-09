@@ -57,6 +57,11 @@ const userSchema = mongoose.Schema({
     verificationOTPExpires: {
         type: Date,
         select: false,
+    },
+    accountType: {
+        type: String,
+        enum: ["buyer", "seller"],
+        default: "buyer",
     }
 }, { timestamps: true });
 

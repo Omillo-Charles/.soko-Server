@@ -31,3 +31,22 @@ export const getUser = async (req, res, next) => {
         next(error);
     }
 }
+
+export const updateAccountType = async (req, res, next) => {
+    try {
+        const { accountType } = req.body;
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { accountType },
+            { new: true }
+        ).select('-password');
+
+        res.status(200).json({
+            success: true,
+            message: `Account switched to ${accountType}`,
+            data: user
+        });
+    } catch (error) {
+        next(error);
+    }
+}
