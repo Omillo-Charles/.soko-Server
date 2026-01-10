@@ -8,6 +8,8 @@ import userRouter from "./routes/user.routes.js";
 import contactRouter from "./routes/contact.routes.js";
 import shopRouter from "./routes/shop.routes.js";
 import productRouter from "./routes/product.routes.js";
+import cartRouter from "./routes/cart.routes.js";
+import wishlistRouter from "./routes/wishlist.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import passport from "./config/passport.js";
 
@@ -26,6 +28,8 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/contacts", contactRouter);
 app.use("/api/v1/shops", shopRouter);
 app.use("/api/v1/products", productRouter);
+app.use("/api/v1/carts", cartRouter);
+app.use("/api/v1/wishlist", wishlistRouter);
 
 app.use(errorMiddleware);
 

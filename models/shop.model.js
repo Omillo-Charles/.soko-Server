@@ -37,7 +37,7 @@ const shopSchema = new mongoose.Schema({
         type: String,
         required: [true, "Shop email is required"],
     },
-    logo: {
+    avatar: {
         type: String,
         default: ""
     },
