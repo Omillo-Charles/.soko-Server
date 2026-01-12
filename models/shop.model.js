@@ -48,6 +48,14 @@ const shopSchema = new mongoose.Schema({
     isVerified: {
         type: Boolean,
         default: false
+    },
+    followers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    followersCount: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

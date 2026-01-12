@@ -158,3 +158,47 @@ export const deleteShop = async (req, res, next) => {
         next(error);
     }
 };
+
+export const toggleFollowShop = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const shop = await Shop.findById(id);
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Prevent users from following their own shop
+        if (shop.owner.toString() === userId.toString()) {
+            const error = new Error('You cannot follow your own shop');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const isFollowing = shop.followers.includes(userId);
+
+        if (isFollowing) {
+            // Unfollow
+            shop.followers = shop.followers.filter(f => f.toString() !== userId.toString());
+            shop.followersCount = Math.max(0, shop.followersCount - 1);
+        } else {
+            // Follow
+            shop.followers.push(userId);
+            shop.followersCount += 1;
+        }
+
+        await shop.save();
+
+        res.status(200).json({
+            success: true,
+            message: isFollowing ? "Unfollowed shop successfully" : "Followed shop successfully",
+            isFollowing: !isFollowing,
+            followersCount: shop.followersCount
+        });
+    } catch (error) {
+        next(error);
+    }
+};

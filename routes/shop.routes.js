@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createShop, getMyShop, getShopById, updateShop, deleteShop, getShops } from "../controllers/shop.controller.js";
+import { createShop, getMyShop, getShopById, updateShop, deleteShop, getShops, toggleFollowShop } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
 
@@ -15,5 +15,6 @@ shopRouter.put("/my-shop/branding", authorize, upload.fields([
     { name: 'banner', maxCount: 1 }
 ]), updateShop);
 shopRouter.delete("/my-shop", authorize, deleteShop);
+shopRouter.post("/:id/follow", authorize, toggleFollowShop);
 
 export default shopRouter;

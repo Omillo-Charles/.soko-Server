@@ -45,7 +45,7 @@ export const createProduct = async (req, res, next) => {
 
 export const getProducts = async (req, res, next) => {
     try {
-        const { q, cat } = req.query;
+        const { q, cat, shop } = req.query;
         let query = {};
 
         if (q) {
@@ -57,6 +57,10 @@ export const getProducts = async (req, res, next) => {
 
         if (cat && cat !== 'all') {
             query.category = cat;
+        }
+
+        if (shop) {
+            query.shop = shop;
         }
 
         const products = await Product.find(query)
