@@ -46,7 +46,7 @@ export const createProduct = async (req, res, next) => {
 export const getProducts = async (req, res, next) => {
     try {
         const products = await Product.find()
-            .populate({ path: 'shop', select: 'name logo isVerified', model: Shop })
+            .populate({ path: 'shop', select: 'name avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -79,7 +79,7 @@ export const getMyProducts = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
     try {
-        const product = await Product.findById(req.params.id).populate({ path: 'shop', select: 'name logo isVerified', model: Shop });
+        const product = await Product.findById(req.params.id).populate({ path: 'shop', select: 'name avatar isVerified', model: Shop });
         if (!product) {
             const error = new Error('Product not found');
             error.statusCode = 404;

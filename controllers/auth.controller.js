@@ -92,6 +92,32 @@ export const signUp = async (req, res, next) => {
     }
 }
 
+export const changePassword = async (req, res, next) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        const user = await User.findById(req.user._id).select('+password');
+        
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            const error = new Error('Current password is incorrect');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const signIn = async (req, res, next) => {
     try {
         const {email, password} = req.body;

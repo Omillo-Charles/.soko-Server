@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { signIn, signOut, signUp, refresh, googleAuthSuccess, githubAuthSuccess, forgotPassword, resetPassword, verifyEmail } from "../controllers/auth.controller.js";
+import { signIn, signOut, signUp, refresh, googleAuthSuccess, githubAuthSuccess, forgotPassword, resetPassword, verifyEmail, changePassword } from "../controllers/auth.controller.js";
 import validate from "../middlewares/validate.middleware.js";
 import { signInSchema, signUpSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from "../validations/auth.validation.js";
 import passport from "passport";
 import { FRONTEND_URL } from "../config/env.js";
+import authorize from "../middlewares/auth.middleware.js";
 
 const authRouter = Router();
 
@@ -14,6 +15,7 @@ authRouter.post("/sign-out", signOut);
 authRouter.post("/refresh", refresh);
 authRouter.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
 authRouter.post("/reset-password/:token", validate(resetPasswordSchema), resetPassword);
+authRouter.post("/change-password", authorize, changePassword);
 
 // Google Auth Routes
 authRouter.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));

@@ -1,4 +1,7 @@
 import Shop from "../models/shop.model.js";
+import Product from "../models/product.model.js";
+import Cart from "../models/cart.model.js";
+import Wishlist from "../models/wishlist.model.js";
 
 export const createShop = async (req, res, next) => {
     try {
@@ -104,16 +107,40 @@ export const updateShop = async (req, res, next) => {
 
 export const deleteShop = async (req, res, next) => {
     try {
-        const shop = await Shop.findOneAndDelete({ owner: req.user._id });
+        const shop = await Shop.findOne({ owner: req.user._id });
         if (!shop) {
             const error = new Error('Shop not found');
             error.statusCode = 404;
             throw error;
         }
 
+        // 1. Find all products belonging to this shop
+        const products = await Product.find({ shop: shop._id });
+        const productIds = products.map(p => p._id);
+
+        if (productIds.length > 0) {
+            // 2. Remove products from all Carts
+            await Cart.updateMany(
+                { "items.product": { $in: productIds } },
+                { $pull: { items: { product: { $in: productIds } } } }
+            );
+
+            // 3. Remove products from all Wishlists
+            await Wishlist.updateMany(
+                { products: { $in: productIds } },
+                { $pull: { products: { $in: productIds } } }
+            );
+
+            // 4. Delete all products belonging to the shop
+            await Product.deleteMany({ shop: shop._id });
+        }
+
+        // 5. Delete the shop itself
+        await Shop.findByIdAndDelete(shop._id);
+
         res.status(200).json({
             success: true,
-            message: "Shop deleted successfully"
+            message: "Shop and all associated products deleted successfully"
         });
     } catch (error) {
         next(error);

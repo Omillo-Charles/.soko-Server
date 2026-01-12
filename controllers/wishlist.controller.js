@@ -46,8 +46,8 @@ export const toggleWishlist = async (req, res, next) => {
             
             // Decrement likesCount on product (ensure it doesn't go below 0)
             await Product.findByIdAndUpdate(productId, [
-                { $set: { likesCount: { $max: [0, { $add: ["$likesCount", -1] }] } } }
-            ]);
+                { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
+            ], { updatePipeline: true });
             
             const updatedWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
             
@@ -106,8 +106,8 @@ export const removeFromWishlist = async (req, res, next) => {
 
             // Decrement likesCount on product (ensure it doesn't go below 0)
             await Product.findByIdAndUpdate(productIdToRemove, [
-                { $set: { likesCount: { $max: [0, { $add: ["$likesCount", -1] }] } } }
-            ]);
+                { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
+            ], { updatePipeline: true });
         }
 
         const updatedWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
