@@ -45,7 +45,21 @@ export const createProduct = async (req, res, next) => {
 
 export const getProducts = async (req, res, next) => {
     try {
-        const products = await Product.find()
+        const { q, cat } = req.query;
+        let query = {};
+
+        if (q) {
+            query.$or = [
+                { name: { $regex: q, $options: 'i' } },
+                { description: { $regex: q, $options: 'i' } }
+            ];
+        }
+
+        if (cat && cat !== 'all') {
+            query.category = cat;
+        }
+
+        const products = await Product.find(query)
             .populate({ path: 'shop', select: 'name avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 

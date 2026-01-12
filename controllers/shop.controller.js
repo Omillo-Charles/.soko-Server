@@ -48,6 +48,18 @@ export const getMyShop = async (req, res, next) => {
     }
 };
 
+export const getShops = async (req, res, next) => {
+    try {
+        const shops = await Shop.find().limit(10);
+        res.status(200).json({
+            success: true,
+            data: shops
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getShopById = async (req, res, next) => {
     try {
         const shop = await Shop.findById(req.params.id);
