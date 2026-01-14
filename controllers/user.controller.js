@@ -104,6 +104,35 @@ export const getUser = async (req, res, next) => {
     }
 }
 
+export const getUserFollowing = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        // Find shops where this user is in the followers array
+        const following = await Shop.find({ followers: id })
+            .select('name avatar description isVerified');
+
+        res.status(200).json({
+            success: true,
+            data: following
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getUserFollowers = async (req, res, next) => {
+    try {
+        // Users don't have followers in this application, only shops do
+        res.status(200).json({
+            success: true,
+            data: []
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateAccountType = async (req, res, next) => {
     try {
         const { accountType } = req.body;

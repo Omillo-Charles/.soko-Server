@@ -76,6 +76,22 @@ export const getProducts = async (req, res, next) => {
     }
 };
 
+export const getProductsByShopId = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const products = await Product.find({ shop: id })
+            .populate({ path: 'shop', select: 'name avatar isVerified', model: Shop })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: products
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const getMyProducts = async (req, res, next) => {
     try {
         const shop = await Shop.findOne({ owner: req.user._id });

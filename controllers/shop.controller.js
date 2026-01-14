@@ -38,10 +38,23 @@ export const createShop = async (req, res, next) => {
 export const getMyShop = async (req, res, next) => {
     try {
         const shop = await Shop.findOne({ owner: req.user._id });
+        if (!shop) {
+            return res.status(200).json({
+                success: true,
+                data: null
+            });
+        }
+
+        const productsCount = await Product.countDocuments({ shop: shop._id });
+        const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
 
         res.status(200).json({
             success: true,
-            data: shop
+            data: {
+                ...shop.toObject(),
+                productsCount,
+                followersCount
+            }
         });
     } catch (error) {
         next(error);
@@ -50,10 +63,22 @@ export const getMyShop = async (req, res, next) => {
 
 export const getShops = async (req, res, next) => {
     try {
-        const shops = await Shop.find().limit(10);
+        const shops = await Shop.find().limit(20);
+        
+        const shopsWithCounts = await Promise.all(shops.map(async (shop) => {
+            const productsCount = await Product.countDocuments({ shop: shop._id });
+            const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+            
+            return {
+                ...shop.toObject(),
+                productsCount,
+                followersCount
+            };
+        }));
+
         res.status(200).json({
             success: true,
-            data: shops
+            data: shopsWithCounts
         });
     } catch (error) {
         next(error);
@@ -69,9 +94,16 @@ export const getShopById = async (req, res, next) => {
             throw error;
         }
 
+        const productsCount = await Product.countDocuments({ shop: shop._id });
+        const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+
         res.status(200).json({
             success: true,
-            data: shop
+            data: {
+                ...shop.toObject(),
+                productsCount,
+                followersCount
+            }
         });
     } catch (error) {
         next(error);
@@ -183,12 +215,12 @@ export const toggleFollowShop = async (req, res, next) => {
         if (isFollowing) {
             // Unfollow
             shop.followers = shop.followers.filter(f => f.toString() !== userId.toString());
-            shop.followersCount = Math.max(0, shop.followersCount - 1);
         } else {
             // Follow
             shop.followers.push(userId);
-            shop.followersCount += 1;
         }
+
+        shop.followersCount = shop.followers.length;
 
         await shop.save();
 
@@ -197,6 +229,42 @@ export const toggleFollowShop = async (req, res, next) => {
             message: isFollowing ? "Unfollowed shop successfully" : "Followed shop successfully",
             isFollowing: !isFollowing,
             followersCount: shop.followersCount
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopFollowers = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const shop = await Shop.findById(id).populate({
+            path: 'followers',
+            select: 'name email avatar',
+            model: 'User'
+        });
+
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: shop.followers
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopFollowing = async (req, res, next) => {
+    try {
+        // Shops don't follow anything in this application
+        res.status(200).json({
+            success: true,
+            data: []
         });
     } catch (error) {
         next(error);
