@@ -151,3 +151,153 @@ export const updateAccountType = async (req, res, next) => {
         next(error);
     }
 }
+
+export const addAddress = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { name, type, phone, city, street, isDefault } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // If this is the first address, make it default anyway
+        const shouldBeDefault = user.addresses.length === 0 ? true : isDefault;
+
+        // If setting as default, unset others
+        if (shouldBeDefault) {
+            user.addresses.forEach(addr => addr.isDefault = false);
+        }
+
+        user.addresses.push({ name, type, phone, city, street, isDefault: shouldBeDefault });
+        await user.save();
+
+        res.status(201).json({
+            success: true,
+            message: "Address added successfully",
+            data: user.addresses[user.addresses.length - 1]
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateAddress = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+        const { name, type, phone, city, street, isDefault } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const address = user.addresses.id(addressId);
+        if (!address) {
+            const error = new Error('Address not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // If setting as default, unset others
+        if (isDefault && !address.isDefault) {
+            user.addresses.forEach(addr => addr.isDefault = false);
+        }
+
+        address.name = name || address.name;
+        address.type = type || address.type;
+        address.phone = phone || address.phone;
+        address.city = city || address.city;
+        address.street = street || address.street;
+        address.isDefault = isDefault !== undefined ? isDefault : address.isDefault;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Address updated successfully",
+            data: address
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteAddress = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const address = user.addresses.id(addressId);
+        if (!address) {
+            const error = new Error('Address not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const wasDefault = address.isDefault;
+        user.addresses.pull(addressId);
+
+        // If we deleted the default address and there are others left, make the first one default
+        if (wasDefault && user.addresses.length > 0) {
+            user.addresses[0].isDefault = true;
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Address deleted successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const setDefaultAddress = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { addressId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const address = user.addresses.id(addressId);
+        if (!address) {
+            const error = new Error('Address not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        user.addresses.forEach(addr => {
+            addr.isDefault = addr._id.toString() === addressId;
+        });
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Default address updated",
+            data: user.addresses
+        });
+    } catch (error) {
+        next(error);
+    }
+};

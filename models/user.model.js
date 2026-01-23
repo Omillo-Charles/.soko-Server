@@ -1,6 +1,15 @@
 import mongoose from "mongoose";
 import { userConnection } from "../database/mongodb.js";
 
+const addressSchema = mongoose.Schema({
+    name: { type: String, required: true },
+    type: { type: String, enum: ["home", "work", "other"], default: "home" },
+    phone: { type: String, required: true },
+    city: { type: String, required: true },
+    street: { type: String, required: true },
+    isDefault: { type: Boolean, default: false }
+});
+
 const userSchema = mongoose.Schema({
     name: {
         type: String,
@@ -62,7 +71,8 @@ const userSchema = mongoose.Schema({
         type: String,
         enum: ["buyer", "seller"],
         default: "buyer",
-    }
+    },
+    addresses: [addressSchema]
 }, { timestamps: true });
 
 const User = userConnection.model("User", userSchema);
