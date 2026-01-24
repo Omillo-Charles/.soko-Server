@@ -64,7 +64,7 @@ export const getProducts = async (req, res, next) => {
         }
 
         const products = await Product.find(query)
-            .populate({ path: 'shop', select: 'name avatar isVerified', model: Shop })
+            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -80,7 +80,7 @@ export const getProductsByShopId = async (req, res, next) => {
     try {
         const { id } = req.params;
         const products = await Product.find({ shop: id })
-            .populate({ path: 'shop', select: 'name avatar isVerified', model: Shop })
+            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -113,7 +113,7 @@ export const getMyProducts = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
     try {
-        const product = await Product.findById(req.params.id).populate({ path: 'shop', select: 'name avatar isVerified', model: Shop });
+        const product = await Product.findById(req.params.id).populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop });
         if (!product) {
             const error = new Error('Product not found');
             error.statusCode = 404;

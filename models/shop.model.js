@@ -15,6 +15,16 @@ const shopSchema = new mongoose.Schema({
         minlength: 3,
         maxlength: 50
     },
+    username: {
+        type: String,
+        unique: true,
+        sparse: true,
+        trim: true,
+        lowercase: true,
+        minlength: [3, "Username must be at least 3 characters"],
+        maxlength: [30, "Username cannot exceed 30 characters"],
+        match: [/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers and underscores"]
+    },
     description: {
         type: String,
         required: [true, "Shop description is required"],

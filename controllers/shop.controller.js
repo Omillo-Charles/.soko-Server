@@ -5,7 +5,7 @@ import Wishlist from "../models/wishlist.model.js";
 
 export const createShop = async (req, res, next) => {
     try {
-        const { name, description, category, address, phone, email } = req.body;
+        const { name, username, description, category, address, phone, email } = req.body;
         
         // Check if user already has a shop
         const existingShop = await Shop.findOne({ owner: req.user._id });
@@ -15,9 +15,20 @@ export const createShop = async (req, res, next) => {
             throw error;
         }
 
+        // Check if username is taken
+        if (username) {
+            const existingUsername = await Shop.findOne({ username: username.toLowerCase() });
+            if (existingUsername) {
+                const error = new Error('Username is already taken');
+                error.statusCode = 400;
+                throw error;
+            }
+        }
+
         const shop = await Shop.create({
             owner: req.user._id,
             name,
+            username,
             description,
             category,
             address,
@@ -130,7 +141,18 @@ export const updateShop = async (req, res, next) => {
         }
 
         // Handle other fields
-        const updateFields = ['name', 'description', 'category', 'address', 'phone', 'email'];
+        const updateFields = ['name', 'username', 'description', 'category', 'address', 'phone', 'email'];
+        
+        // If username is being updated, check if it's already taken by another shop
+        if (req.body.username && req.body.username !== shop.username) {
+            const existingShopWithUsername = await Shop.findOne({ username: req.body.username.toLowerCase() });
+            if (existingShopWithUsername) {
+                const error = new Error('Username is already taken');
+                error.statusCode = 400;
+                throw error;
+            }
+        }
+
         updateFields.forEach(field => {
             if (req.body[field] !== undefined) {
                 shop[field] = req.body[field];
@@ -185,6 +207,26 @@ export const deleteShop = async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: "Shop and all associated products deleted successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const checkUsernameAvailability = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        if (!username) {
+            const error = new Error('Username is required');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        
+        res.status(200).json({
+            success: true,
+            available: !shop
         });
     } catch (error) {
         next(error);
