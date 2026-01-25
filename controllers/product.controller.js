@@ -1,5 +1,63 @@
 import Product from "../models/product.model.js";
 import Shop from "../models/shop.model.js";
+import Rating from "../models/rating.model.js";
+
+export const rateProduct = async (req, res, next) => {
+    try {
+        const { id: productId } = req.params;
+        const { rating } = req.body;
+        const userId = req.user._id;
+
+        if (!rating || rating < 1 || rating > 5) {
+            const error = new Error('Please provide a valid rating between 1 and 5');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Check if product exists
+        const product = await Product.findById(productId);
+        if (!product) {
+            const error = new Error('Product not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Update or create rating
+        const existingRating = await Rating.findOne({ product: productId, user: userId });
+        
+        if (existingRating) {
+            existingRating.rating = rating;
+            await existingRating.save();
+        } else {
+            await Rating.create({
+                product: productId,
+                user: userId,
+                rating
+            });
+        }
+
+        // Recalculate average rating
+        const ratings = await Rating.find({ product: productId });
+        const reviewsCount = ratings.length;
+        const averageRating = ratings.reduce((sum, item) => sum + item.rating, 0) / reviewsCount;
+
+        // Update product with new rating info
+        product.rating = averageRating;
+        product.reviewsCount = reviewsCount;
+        await product.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Rating submitted successfully",
+            data: {
+                rating: averageRating,
+                reviewsCount
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const createProduct = async (req, res, next) => {
     try {

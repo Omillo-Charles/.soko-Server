@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { createProduct, getProducts, getProductById, getMyProducts, updateProduct, deleteProduct, getProductsByShopId } from "../controllers/product.controller.js";
+import { createProduct, getProducts, getProductById, getMyProducts, updateProduct, deleteProduct, getProductsByShopId, rateProduct } from "../controllers/product.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
 
 const productRouter = Router();
 
 productRouter.post("/", authorize, upload.single('image'), createProduct);
+productRouter.post("/:id/rate", authorize, rateProduct);
 productRouter.get("/", getProducts);
 productRouter.get("/shop/:id", getProductsByShopId);
 productRouter.get("/my-products", authorize, getMyProducts);
