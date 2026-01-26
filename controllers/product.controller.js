@@ -71,11 +71,16 @@ export const createProduct = async (req, res, next) => {
             throw error;
         }
 
-        // Get image URL from Cloudinary if uploaded
-        const image = req.file ? req.file.path : req.body.image;
+        // Get image URLs from Cloudinary if uploaded
+        let images = [];
+        if (req.files && req.files.length > 0) {
+            images = req.files.map(file => file.path);
+        } else if (req.body.image) {
+            images = [req.body.image];
+        }
 
-        if (!image) {
-            const error = new Error('Please upload an image or provide an image link.');
+        if (images.length === 0) {
+            const error = new Error('Please upload at least one image or provide an image link.');
             error.statusCode = 400;
             throw error;
         }
@@ -88,7 +93,8 @@ export const createProduct = async (req, res, next) => {
             price,
             category,
             stock,
-            image
+            image: images[0],
+            images
         });
 
         res.status(201).json({
@@ -206,8 +212,34 @@ export const updateProduct = async (req, res, next) => {
         }
 
         const updates = { ...req.body };
-        if (req.file) {
-            updates.image = req.file.path;
+        
+        // Handle images
+        let currentImages = [];
+        
+        // Add existing images that were kept
+        if (req.body.existingImages) {
+            try {
+                const existing = JSON.parse(req.body.existingImages);
+                if (Array.isArray(existing)) {
+                    currentImages = [...existing];
+                }
+            } catch (e) {
+                console.error("Error parsing existingImages:", e);
+            }
+        }
+
+        // Add new uploaded images
+        if (req.files && req.files.length > 0) {
+            const newImages = req.files.map(file => file.path);
+            currentImages = [...currentImages, ...newImages];
+        }
+
+        // Limit to 3 images
+        currentImages = currentImages.slice(0, 3);
+
+        if (currentImages.length > 0) {
+            updates.images = currentImages;
+            updates.image = currentImages[0];
         }
 
         const updatedProduct = await Product.findByIdAndUpdate(
