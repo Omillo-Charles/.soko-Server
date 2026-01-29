@@ -61,7 +61,7 @@ export const rateProduct = async (req, res, next) => {
 
 export const createProduct = async (req, res, next) => {
     try {
-        const { name, description, content, price, category, stock } = req.body;
+        const { name, description, content, price, category, stock, sizes, colors } = req.body;
         
         // Find user's shop
         const shop = await Shop.findOne({ owner: req.user._id });
@@ -85,6 +85,17 @@ export const createProduct = async (req, res, next) => {
             throw error;
         }
 
+        // Handle variations
+        let parsedSizes = [];
+        let parsedColors = [];
+        
+        if (sizes) {
+            parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+        }
+        if (colors) {
+            parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+        }
+
         const product = await Product.create({
             shop: shop._id,
             name,
@@ -94,7 +105,9 @@ export const createProduct = async (req, res, next) => {
             category,
             stock,
             image: images[0],
-            images
+            images,
+            sizes: parsedSizes,
+            colors: parsedColors
         });
 
         res.status(201).json({
@@ -262,6 +275,22 @@ export const updateProduct = async (req, res, next) => {
         }
 
         const updates = { ...req.body };
+        
+        // Handle variations
+        if (req.body.sizes) {
+            try {
+                updates.sizes = typeof req.body.sizes === 'string' ? JSON.parse(req.body.sizes) : req.body.sizes;
+            } catch (e) {
+                console.error("Error parsing sizes:", e);
+            }
+        }
+        if (req.body.colors) {
+            try {
+                updates.colors = typeof req.body.colors === 'string' ? JSON.parse(req.body.colors) : req.body.colors;
+            } catch (e) {
+                console.error("Error parsing colors:", e);
+            }
+        }
         
         // Handle images
         let currentImages = [];

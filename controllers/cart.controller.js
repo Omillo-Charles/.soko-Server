@@ -20,7 +20,7 @@ export const getCart = async (req, res, next) => {
 
 export const addToCart = async (req, res, next) => {
     try {
-        const { productId, quantity, size, color } = req.body;
+        const { productId, quantity, size, color, image } = req.body;
         
         // Check if product exists
         const product = await Product.findById(productId);
@@ -36,11 +36,12 @@ export const addToCart = async (req, res, next) => {
             cart = await Cart.create({ user: req.user._id, items: [] });
         }
 
-        // Check if item already exists in cart
+        // Check if item already exists in cart with same variations (including image)
         const existingItemIndex = cart.items.findIndex(item => 
             item.product && item.product.toString() === productId && 
             item.size === size && 
-            item.color === color
+            item.color === color &&
+            item.image === image
         );
 
         if (existingItemIndex > -1) {
@@ -50,7 +51,8 @@ export const addToCart = async (req, res, next) => {
                 product: productId,
                 quantity: quantity || 1,
                 size,
-                color
+                color,
+                image: image || product.image
             });
         }
 

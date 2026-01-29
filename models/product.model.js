@@ -64,8 +64,36 @@ const productSchema = new mongoose.Schema({
     commentsCount: {
         type: Number,
         default: 0
+    },
+    sizes: {
+        type: [String],
+        default: []
+    },
+    colors: {
+        type: [String],
+        default: []
     }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+productSchema.virtual('variantOptions').get(function() {
+    if (this.colors && this.colors.length > 0) {
+        return this.colors.map((color, index) => ({
+            name: color,
+            image: (this.images && this.images[index]) ? this.images[index] : this.image
+        }));
+    }
+    if (this.images && this.images.length > 0) {
+        return this.images.map((img, index) => ({
+            name: `Option ${index + 1}`,
+            image: img
+        }));
+    }
+    return [{ name: "Default", image: this.image }];
+});
 
 const Product = productConnection.model("Product", productSchema);
 
