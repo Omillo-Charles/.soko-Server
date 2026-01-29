@@ -31,9 +31,17 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
     items: [orderItemSchema],
+    subtotal: {
+        type: Number,
+        default: 0
+    },
     totalAmount: {
         type: Number,
         required: true
+    },
+    shippingFee: {
+        type: Number,
+        default: 0
     },
     shippingAddress: {
         name: String,

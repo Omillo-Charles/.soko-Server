@@ -5,6 +5,7 @@ import Shop from "../models/shop.model.js";
 import User from "../models/user.model.js";
 import { sendEmail } from "../config/nodemailer.js";
 import { getOrderConfirmationEmailTemplate, getNewOrderSellerEmailTemplate } from "../utils/emailTemplates.js";
+import { calculateShippingFee } from "../utils/shipping.js";
 
 export const createOrder = async (req, res, next) => {
     try {
@@ -17,8 +18,8 @@ export const createOrder = async (req, res, next) => {
             throw error;
         }
 
-        // 1. Calculate total and group items by shop for emails
-        let totalAmount = 0;
+        // 1. Calculate subtotal and group items by shop for emails
+        let subtotal = 0;
         const shopOrders = {}; // Group items by shopId
 
         for (const item of items) {
@@ -30,7 +31,7 @@ export const createOrder = async (req, res, next) => {
             }
 
             const itemTotal = product.price * item.quantity;
-            totalAmount += itemTotal;
+            subtotal += itemTotal;
 
             const shopId = product.shop._id.toString();
             if (!shopOrders[shopId]) {
@@ -47,6 +48,9 @@ export const createOrder = async (req, res, next) => {
             });
         }
 
+        const shippingFee = calculateShippingFee(subtotal);
+        const totalAmount = subtotal + shippingFee;
+
         // 2. Create the order in DB
         const order = await Order.create({
             user: userId,
@@ -60,6 +64,8 @@ export const createOrder = async (req, res, next) => {
                 size: item.size,
                 color: item.color
             })),
+            subtotal,
+            shippingFee,
             totalAmount,
             shippingAddress,
             paymentMethod: 'Cash on Delivery',
