@@ -1,7 +1,10 @@
+import mongoose from "mongoose";
 import Shop from "../models/shop.model.js";
+import User from "../models/user.model.js";
 import Product from "../models/product.model.js";
 import Cart from "../models/cart.model.js";
 import Wishlist from "../models/wishlist.model.js";
+import Rating from "../models/rating.model.js";
 
 export const createShop = async (req, res, next) => {
     try {
@@ -64,7 +67,9 @@ export const getMyShop = async (req, res, next) => {
             data: {
                 ...shop.toObject(),
                 productsCount,
-                followersCount
+                followersCount,
+                rating: shop.rating || 0,
+                reviewsCount: shop.reviewsCount || 0
             }
         });
     } catch (error) {
@@ -83,7 +88,9 @@ export const getShops = async (req, res, next) => {
             return {
                 ...shop.toObject(),
                 productsCount,
-                followersCount
+                followersCount,
+                rating: shop.rating || 0,
+                reviewsCount: shop.reviewsCount || 0
             };
         }));
 
@@ -113,7 +120,9 @@ export const getShopById = async (req, res, next) => {
             data: {
                 ...shop.toObject(),
                 productsCount,
-                followersCount
+                followersCount,
+                rating: shop.rating || 0,
+                reviewsCount: shop.reviewsCount || 0
             }
         });
     } catch (error) {
@@ -307,6 +316,107 @@ export const getShopFollowing = async (req, res, next) => {
         res.status(200).json({
             success: true,
             data: []
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopReviews = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            const error = new Error('Invalid shop ID');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const reviews = await Rating.find({ shop: new mongoose.Types.ObjectId(id) })
+            .populate({
+                path: 'user',
+                model: User,
+                select: 'name avatar username'
+            })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: reviews
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const rateShop = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { rating, comment } = req.body;
+        const userId = req.user._id;
+
+        if (!rating || rating < 1 || rating > 5) {
+            const error = new Error('Please provide a rating between 1 and 5');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            const error = new Error('Invalid shop ID');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        const shop = await Shop.findById(id);
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Check if user is the owner
+        if (shop.owner.toString() === userId.toString()) {
+            const error = new Error('You cannot rate your own shop');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Find or create rating
+        let userRating = await Rating.findOne({ 
+            shop: new mongoose.Types.ObjectId(id), 
+            user: userId 
+        });
+        
+        if (userRating) {
+            userRating.rating = rating;
+            userRating.comment = comment;
+            await userRating.save();
+        } else {
+            await Rating.create({
+                shop: new mongoose.Types.ObjectId(id),
+                user: userId,
+                rating,
+                comment
+            });
+        }
+
+        // Calculate new average rating
+        const allRatings = await Rating.find({ shop: new mongoose.Types.ObjectId(id) });
+        const totalRating = allRatings.reduce((sum, r) => sum + r.rating, 0);
+        const averageRating = totalRating / allRatings.length;
+
+        // Update shop rating and reviews count
+        shop.rating = averageRating;
+        shop.reviewsCount = allRatings.length;
+        await shop.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Shop rated successfully",
+            data: {
+                rating: shop.rating,
+                reviewsCount: shop.reviewsCount
+            }
         });
     } catch (error) {
         next(error);

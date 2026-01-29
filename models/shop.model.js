@@ -66,6 +66,14 @@ const shopSchema = new mongoose.Schema({
     followersCount: {
         type: Number,
         default: 0
+    },
+    rating: {
+        type: Number,
+        default: 0
+    },
+    reviewsCount: {
+        type: Number,
+        default: 0
     }
 }, { timestamps: true });
 

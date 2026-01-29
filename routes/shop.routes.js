@@ -9,7 +9,9 @@ import {
     toggleFollowShop, 
     getShopFollowers, 
     getShopFollowing,
-    checkUsernameAvailability
+    checkUsernameAvailability,
+    rateShop,
+    getShopReviews
 } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
@@ -30,5 +32,7 @@ shopRouter.delete("/my-shop", authorize, deleteShop);
 shopRouter.post("/:id/follow", authorize, toggleFollowShop);
 shopRouter.get("/:id/followers", getShopFollowers);
 shopRouter.get("/:id/following", getShopFollowing);
+shopRouter.get("/:id/reviews", getShopReviews);
+shopRouter.post("/:id/rate", authorize, rateShop);
 
 export default shopRouter;
