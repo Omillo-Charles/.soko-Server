@@ -134,8 +134,14 @@ export const getProducts = async (req, res, next) => {
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
+        // If limit is explicitly -1, don't apply any limit
         if (limitValue > 0) {
             productsQuery = productsQuery.limit(limitValue).skip(skipValue);
+        } else if (limitValue === -1) {
+            // No limit applied
+        } else {
+            // Default limit if not provided or 0
+            productsQuery = productsQuery.limit(100).skip(skipValue);
         }
 
         const products = await productsQuery;
@@ -147,7 +153,11 @@ export const getProducts = async (req, res, next) => {
                 total: await Product.countDocuments(query),
                 page: parseInt(page),
                 limit: limitValue
-            } : undefined
+            } : (limitValue === -1 ? {
+                total: products.length,
+                page: 1,
+                limit: products.length
+            } : undefined)
         });
     } catch (error) {
         next(error);
@@ -162,15 +172,21 @@ export const getProductsByShopId = async (req, res, next) => {
         const limitValue = parseInt(limit) || 0;
         const skipValue = (parseInt(page) - 1) * limitValue;
 
-        let query = Product.find({ shop: id })
+        let queryBuilder = Product.find({ shop: id })
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
+        // If limit is explicitly -1, don't apply any limit
         if (limitValue > 0) {
-            query = query.limit(limitValue).skip(skipValue);
+            queryBuilder = queryBuilder.limit(limitValue).skip(skipValue);
+        } else if (limitValue === -1) {
+            // No limit applied
+        } else {
+            // Default limit if not provided or 0
+            queryBuilder = queryBuilder.limit(100).skip(skipValue);
         }
 
-        const products = await query;
+        const products = await queryBuilder;
 
         res.status(200).json({
             success: true,
@@ -179,7 +195,11 @@ export const getProductsByShopId = async (req, res, next) => {
                 total: await Product.countDocuments({ shop: id }),
                 page: parseInt(page),
                 limit: limitValue
-            } : undefined
+            } : (limitValue === -1 ? {
+                total: products.length,
+                page: 1,
+                limit: products.length
+            } : undefined)
         });
     } catch (error) {
         next(error);
