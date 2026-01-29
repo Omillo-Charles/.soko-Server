@@ -116,3 +116,143 @@ export const getVerificationEmailTemplate = (name, otp) => {
     text: `Hi ${name}, your verification code for .soko is: ${otp}. This code expires in 15 minutes.`
   };
 };
+
+export const getOrderConfirmationEmailTemplate = (order, user) => {
+  const itemsHtml = order.items.map(item => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px 0;">
+        <div style="font-weight: bold; color: #333;">${item.name}</div>
+        ${item.size || item.color ? `<div style="font-size: 12px; color: #666;">${[item.size, item.color].filter(Boolean).join(' | ')}</div>` : ''}
+      </td>
+      <td style="padding: 12px 0; text-align: center; color: #666;">x${item.quantity}</td>
+      <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #333;">KES ${item.price.toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  return {
+    subject: `Order Confirmed - #${order._id.toString().slice(-6).toUpperCase()}`,
+    html: `
+      <div style="${baseStyle}">
+        <div style="${headerStyle}">
+          <h1>Order Confirmed!</h1>
+        </div>
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Thank you for your order! We've received your request and we're getting it ready for you. Your order ID is <strong>#${order._id.toString().slice(-6).toUpperCase()}</strong>.</p>
+        
+        <div style="margin: 30px 0; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+          <h3 style="margin-top: 0; color: #007bff; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Order Summary</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e1e1e1; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">
+                <th style="padding-bottom: 10px;">Item</th>
+                <th style="padding-bottom: 10px; text-align: center;">Qty</th>
+                <th style="padding-bottom: 10px; text-align: right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="padding-top: 20px; font-weight: bold; font-size: 18px; color: #333;">Total Amount</td>
+                <td style="padding-top: 20px; text-align: right; font-weight: bold; font-size: 18px; color: #007bff;">KES ${order.totalAmount.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 8px;">Shipping Address</h3>
+          <p style="margin: 5px 0; color: #666; font-size: 14px;">
+            <strong>${order.shippingAddress.name}</strong><br>
+            ${order.shippingAddress.street}, ${order.shippingAddress.city}<br>
+            Phone: ${order.shippingAddress.phone}
+          </p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${process.env.FRONTEND_URL}/account/orders/${order._id}" style="${buttonStyle}">View Order Details</a>
+        </div>
+
+        <p style="margin-top: 30px;">If you have any questions, feel free to reply to this email.</p>
+        <p>Best regards,<br>The .soko Team</p>
+
+        <div style="${footerStyle}">
+          <p>&copy; ${new Date().getFullYear()} .soko Inc. All rights reserved.</p>
+          <p>Payment Method: ${order.paymentMethod}</p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${user.name}, your order #${order._id.toString().slice(-6).toUpperCase()} for KES ${order.totalAmount.toLocaleString()} has been confirmed!`
+  };
+};
+
+export const getNewOrderSellerEmailTemplate = (order, shop, user) => {
+  const shopItems = order.items.filter(item => item.shop.toString() === shop._id.toString());
+  const shopTotal = shopItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  const itemsHtml = shopItems.map(item => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px 0;">
+        <div style="font-weight: bold; color: #333;">${item.name}</div>
+        ${item.size || item.color ? `<div style="font-size: 12px; color: #666;">${[item.size, item.color].filter(Boolean).join(' | ')}</div>` : ''}
+      </td>
+      <td style="padding: 12px 0; text-align: center; color: #666;">x${item.quantity}</td>
+      <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #333;">KES ${item.price.toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  return {
+    subject: `New Order Received - #${order._id.toString().slice(-6).toUpperCase()}`,
+    html: `
+      <div style="${baseStyle}">
+        <div style="${headerStyle}">
+          <h1>New Order!</h1>
+        </div>
+        <p>Hi <strong>${shop.name}</strong>,</p>
+        <p>You've received a new order from <strong>${user.name}</strong>. Please process it as soon as possible.</p>
+        
+        <div style="margin: 30px 0; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+          <h3 style="margin-top: 0; color: #007bff; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Order Items</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e1e1e1; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">
+                <th style="padding-bottom: 10px;">Item</th>
+                <th style="padding-bottom: 10px; text-align: center;">Qty</th>
+                <th style="padding-bottom: 10px; text-align: right;">Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="padding-top: 20px; font-weight: bold; font-size: 18px; color: #333;">Earnings</td>
+                <td style="padding-top: 20px; text-align: right; font-weight: bold; font-size: 18px; color: #007bff;">KES ${shopTotal.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 8px;">Shipping Details</h3>
+          <p style="margin: 5px 0; color: #666; font-size: 14px;">
+            <strong>${order.shippingAddress.name}</strong><br>
+            ${order.shippingAddress.street}, ${order.shippingAddress.city}<br>
+            Phone: ${order.shippingAddress.phone}
+          </p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${process.env.FRONTEND_URL}/account/seller/orders" style="${buttonStyle}">Manage Order</a>
+        </div>
+
+        <div style="${footerStyle}">
+          <p>&copy; ${new Date().getFullYear()} .soko Inc. All rights reserved.</p>
+          <p>Order ID: #${order._id}</p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${shop.name}, you received a new order #${order._id.toString().slice(-6).toUpperCase()} from ${user.name}!`
+  };
+};

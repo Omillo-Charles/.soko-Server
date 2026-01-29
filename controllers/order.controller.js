@@ -4,6 +4,7 @@ import Product from "../models/product.model.js";
 import Shop from "../models/shop.model.js";
 import User from "../models/user.model.js";
 import { sendEmail } from "../config/nodemailer.js";
+import { getOrderConfirmationEmailTemplate, getNewOrderSellerEmailTemplate } from "../utils/emailTemplates.js";
 
 export const createOrder = async (req, res, next) => {
     try {
@@ -67,86 +68,32 @@ export const createOrder = async (req, res, next) => {
 
         // 3. Send Email to User
         const user = await User.findById(userId);
-        const userEmailHtml = `
-            <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                <h1 style="color: #2563eb;">Order Confirmed!</h1>
-                <p>Hello ${user.name},</p>
-                <p>Thank you for your order. Your order ID is <strong>#${order._id}</strong>.</p>
-                <h3>Order Summary:</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <th style="text-align: left; padding: 10px;">Item</th>
-                            <th style="text-align: center; padding: 10px;">Qty</th>
-                            <th style="text-align: right; padding: 10px;">Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${order.items.map(item => `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 10px;">${item.name}</td>
-                                <td style="text-align: center; padding: 10px;">${item.quantity}</td>
-                                <td style="text-align: right; padding: 10px;">UGX ${item.price.toLocaleString()}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <p style="text-align: right; font-size: 1.2em; font-weight: bold; margin-top: 20px;">
-                    Total: UGX ${totalAmount.toLocaleString()}
-                </p>
-                <p><strong>Payment Method:</strong> Cash on Delivery</p>
-                <p><strong>Delivery Address:</strong> ${shippingAddress.street}, ${shippingAddress.city}</p>
-                <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
-                <p style="font-size: 0.9em; color: #666;">We will notify you when your items are on their way.</p>
-            </div>
-        `;
-
-        await sendEmail({
-            to: user.email,
-            subject: `Order Confirmation - #${order._id}`,
-            html: userEmailHtml
-        });
+        try {
+            const template = getOrderConfirmationEmailTemplate(order, user);
+            await sendEmail({
+                to: user.email,
+                subject: template.subject,
+                text: template.text,
+                html: template.html
+            });
+        } catch (emailError) {
+            console.error('Failed to send order confirmation email to user:', emailError);
+        }
 
         // 4. Send Emails to Shops
         for (const shopId in shopOrders) {
-            const { shop, items: shopItems } = shopOrders[shopId];
-            const shopEmailHtml = `
-                <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                    <h1 style="color: #2563eb;">New Order Received!</h1>
-                    <p>Hello ${shop.name},</p>
-                    <p>You have received a new order from <strong>${user.name}</strong> (${user.email}).</p>
-                    <h3>Order Details:</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="border-bottom: 1px solid #ddd;">
-                                <th style="text-align: left; padding: 10px;">Item</th>
-                                <th style="text-align: center; padding: 10px;">Qty</th>
-                                <th style="text-align: right; padding: 10px;">Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${shopItems.map(item => `
-                                <tr style="border-bottom: 1px solid #eee;">
-                                    <td style="padding: 10px;">${item.name}</td>
-                                    <td style="text-align: center; padding: 10px;">${item.quantity}</td>
-                                    <td style="text-align: right; padding: 10px;">UGX ${item.price.toLocaleString()}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    <p><strong>Customer Phone:</strong> ${shippingAddress.phone}</p>
-                    <p><strong>Delivery Address:</strong> ${shippingAddress.street}, ${shippingAddress.city}</p>
-                    <p><strong>Payment Method:</strong> Cash on Delivery</p>
-                    <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
-                    <p style="font-size: 0.9em; color: #666;">Please process this order as soon as possible.</p>
-                </div>
-            `;
-
-            await sendEmail({
-                to: shop.email,
-                subject: `New Order Notification - #${order._id}`,
-                html: shopEmailHtml
-            });
+            const { shop } = shopOrders[shopId];
+            try {
+                const template = getNewOrderSellerEmailTemplate(order, shop, user);
+                await sendEmail({
+                    to: shop.email,
+                    subject: template.subject,
+                    text: template.text,
+                    html: template.html
+                });
+            } catch (emailError) {
+                console.error(`Failed to send order notification to shop ${shopId}:`, emailError);
+            }
         }
 
         // 5. Clear user's cart
