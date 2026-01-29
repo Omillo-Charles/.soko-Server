@@ -109,7 +109,7 @@ export const createProduct = async (req, res, next) => {
 
 export const getProducts = async (req, res, next) => {
     try {
-        const { q, cat, shop } = req.query;
+        const { q, cat, shop, limit, page = 1 } = req.query;
         let query = {};
 
         if (q) {
@@ -127,13 +127,27 @@ export const getProducts = async (req, res, next) => {
             query.shop = shop;
         }
 
-        const products = await Product.find(query)
+        const limitValue = parseInt(limit) || 0;
+        const skipValue = (parseInt(page) - 1) * limitValue;
+
+        let productsQuery = Product.find(query)
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
+        if (limitValue > 0) {
+            productsQuery = productsQuery.limit(limitValue).skip(skipValue);
+        }
+
+        const products = await productsQuery;
+
         res.status(200).json({
             success: true,
-            data: products
+            data: products,
+            pagination: limitValue > 0 ? {
+                total: await Product.countDocuments(query),
+                page: parseInt(page),
+                limit: limitValue
+            } : undefined
         });
     } catch (error) {
         next(error);
@@ -143,13 +157,29 @@ export const getProducts = async (req, res, next) => {
 export const getProductsByShopId = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const products = await Product.find({ shop: id })
+        const { limit, page = 1 } = req.query;
+        
+        const limitValue = parseInt(limit) || 0;
+        const skipValue = (parseInt(page) - 1) * limitValue;
+
+        let query = Product.find({ shop: id })
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
+        if (limitValue > 0) {
+            query = query.limit(limitValue).skip(skipValue);
+        }
+
+        const products = await query;
+
         res.status(200).json({
             success: true,
-            data: products
+            data: products,
+            pagination: limitValue > 0 ? {
+                total: await Product.countDocuments({ shop: id }),
+                page: parseInt(page),
+                limit: limitValue
+            } : undefined
         });
     } catch (error) {
         next(error);
