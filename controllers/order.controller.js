@@ -131,7 +131,7 @@ export const getOrderById = async (req, res, next) => {
     try {
         const order = await Order.findById(req.params.id);
         if (!order) {
-            const error = new Error('Order not found');
+            const error = new Error(`Order with ID ${req.params.id} not found`);
             error.statusCode = 404;
             throw error;
         }
@@ -169,6 +169,70 @@ export const getSellerOrders = async (req, res, next) => {
     }
 };
 
+export const trackOrder = async (req, res, next) => {
+    try {
+        let { id } = req.params;
+        id = id.trim().replace(/^#/, ""); // Remove leading # if present
+        
+        console.log(`[Order Tracking] Request for ID: ${id}`);
+        
+        let order;
+        const isValidObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+        
+        if (isValidObjectId) {
+            console.log(`[Order Tracking] Searching by full ObjectId: ${id}`);
+            order = await Order.findById(id).populate('items.shop', 'name avatar');
+        } else if (id.length >= 4 && id.length <= 12) {
+            console.log(`[Order Tracking] Searching by short ID suffix: ${id}`);
+            // Support searching by short IDs (last characters used in emails/UI)
+            order = await Order.findOne({
+                $expr: {
+                    $eq: [
+                        { $toLower: { $substrCP: [{ $toString: "$_id" }, { $subtract: [24, id.length] }, id.length] } },
+                        id.toLowerCase()
+                    ]
+                }
+            }).populate('items.shop', 'name avatar');
+        } else {
+            console.log(`[Order Tracking] ID format not recognized (length: ${id.length})`);
+        }
+
+        if (!order) {
+            console.log(`[Order Tracking] Order NOT found for ID: ${id}`);
+            const error = new Error(`Order with ID #${id} not found. Please make sure you've entered the correct ID from your email.`);
+            error.statusCode = 404;
+            throw error;
+        }
+
+        console.log(`[Order Tracking] Order found: ${order._id}`);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                _id: order._id,
+                status: order.status,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+                items: order.items.map(item => ({
+                    name: item.name,
+                    shopName: item.shop?.name,
+                    shopAvatar: item.shop?.avatar,
+                    quantity: item.quantity,
+                    price: item.price,
+                    image: item.image
+                })),
+                totalAmount: order.totalAmount,
+                shippingAddress: {
+                    city: order.shippingAddress.city,
+                    street: order.shippingAddress.street
+                }
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateOrderStatus = async (req, res, next) => {
     try {
         const { status } = req.body;
@@ -183,9 +247,16 @@ export const updateOrderStatus = async (req, res, next) => {
         }
 
         // 2. Find the order and verify it contains items from this shop
+        const isValidId = id.match(/^[0-9a-fA-F]{24}$/);
+        if (!isValidId) {
+            const error = new Error('Invalid Order ID format');
+            error.statusCode = 400;
+            throw error;
+        }
+
         const order = await Order.findById(id);
         if (!order) {
-            const error = new Error('Order not found');
+            const error = new Error(`Order with ID ${id} not found`);
             error.statusCode = 404;
             throw error;
         }

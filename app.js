@@ -37,15 +37,23 @@ app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/orders", orderRouter);
 
-app.use(errorMiddleware);
-
 app.get("/", (req, res)=>{
   res.send({
     title: "Duuka Backend API",
     body: "Welcome to the Duuka Backend API"
   });
-
 })
+
+// 404 handler for unknown routes
+app.use((req, res) => {
+  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found on this server`
+  });
+});
+
+app.use(errorMiddleware);
 
 app.listen(PORT, async ()=>{
   console.log(`The Duuka Backend API is running on http://localhost:${PORT}`);
