@@ -122,7 +122,7 @@ export const createProduct = async (req, res, next) => {
 
 export const getProducts = async (req, res, next) => {
     try {
-        const { q, cat, shop, limit, page = 1 } = req.query;
+        const { q, cat, shop, minPrice, maxPrice, limit, page = 1 } = req.query;
         let query = {};
 
         if (q) {
@@ -138,6 +138,13 @@ export const getProducts = async (req, res, next) => {
 
         if (shop) {
             query.shop = shop;
+        }
+
+        // Price filtering
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = parseFloat(minPrice);
+            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
         }
 
         const limitValue = parseInt(limit) || 0;
@@ -180,12 +187,21 @@ export const getProducts = async (req, res, next) => {
 export const getProductsByShopId = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { limit, page = 1 } = req.query;
+        const { minPrice, maxPrice, limit, page = 1 } = req.query;
         
         const limitValue = parseInt(limit) || 0;
         const skipValue = (parseInt(page) - 1) * limitValue;
 
-        let queryBuilder = Product.find({ shop: id })
+        let query = { shop: id };
+
+        // Price filtering
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = parseFloat(minPrice);
+            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+        }
+
+        let queryBuilder = Product.find(query)
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
             .sort({ createdAt: -1 });
 
@@ -205,7 +221,7 @@ export const getProductsByShopId = async (req, res, next) => {
             success: true,
             data: products,
             pagination: limitValue > 0 ? {
-                total: await Product.countDocuments({ shop: id }),
+                total: await Product.countDocuments(query),
                 page: parseInt(page),
                 limit: limitValue
             } : (limitValue === -1 ? {
