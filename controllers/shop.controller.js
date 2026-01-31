@@ -61,6 +61,7 @@ export const getMyShop = async (req, res, next) => {
 
         const productsCount = await Product.countDocuments({ shop: shop._id });
         const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+        const followingCount = await Shop.countDocuments({ followers: shop.owner });
 
         res.status(200).json({
             success: true,
@@ -68,6 +69,7 @@ export const getMyShop = async (req, res, next) => {
                 ...shop.toObject(),
                 productsCount,
                 followersCount,
+                followingCount,
                 rating: shop.rating || 0,
                 reviewsCount: shop.reviewsCount || 0
             }
@@ -84,11 +86,13 @@ export const getShops = async (req, res, next) => {
         const shopsWithCounts = await Promise.all(shops.map(async (shop) => {
             const productsCount = await Product.countDocuments({ shop: shop._id });
             const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+            const followingCount = await Shop.countDocuments({ followers: shop.owner });
             
             return {
                 ...shop.toObject(),
                 productsCount,
                 followersCount,
+                followingCount,
                 rating: shop.rating || 0,
                 reviewsCount: shop.reviewsCount || 0
             };
@@ -114,6 +118,7 @@ export const getShopById = async (req, res, next) => {
 
         const productsCount = await Product.countDocuments({ shop: shop._id });
         const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+        const followingCount = await Shop.countDocuments({ followers: shop.owner });
 
         res.status(200).json({
             success: true,
@@ -121,6 +126,7 @@ export const getShopById = async (req, res, next) => {
                 ...shop.toObject(),
                 productsCount,
                 followersCount,
+                followingCount,
                 rating: shop.rating || 0,
                 reviewsCount: shop.reviewsCount || 0
             }
@@ -312,10 +318,22 @@ export const getShopFollowers = async (req, res, next) => {
 
 export const getShopFollowing = async (req, res, next) => {
     try {
-        // Shops don't follow anything in this application
+        const { id } = req.params;
+        const shop = await Shop.findById(id);
+        
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Find shops where this shop's owner is in the followers array
+        const following = await Shop.find({ followers: shop.owner })
+            .select('name avatar description username isVerified');
+
         res.status(200).json({
             success: true,
-            data: []
+            data: following
         });
     } catch (error) {
         next(error);

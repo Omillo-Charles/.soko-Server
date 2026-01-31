@@ -63,9 +63,13 @@ export const getCurrentUser = async (req, res, next) => {
             throw error;
         }
 
+        const followingCount = await Shop.countDocuments({ followers: user._id });
+        const userWithFollowing = user.toObject();
+        userWithFollowing.followingCount = followingCount;
+
         res.status(200).json({
             success: true,
-            data: user
+            data: userWithFollowing
         });
     } catch (error) {
         next(error);
@@ -95,9 +99,13 @@ export const getUser = async (req, res, next) => {
             throw error;
         }
 
+        const followingCount = await Shop.countDocuments({ followers: user._id });
+        const userWithFollowing = user.toObject();
+        userWithFollowing.followingCount = followingCount;
+
         res.status(200).json({
             success: true,
-            data: user
+            data: userWithFollowing
         });
     } catch (error) {
         next(error);
@@ -110,7 +118,7 @@ export const getUserFollowing = async (req, res, next) => {
         
         // Find shops where this user is in the followers array
         const following = await Shop.find({ followers: id })
-            .select('name avatar description isVerified');
+            .select('name avatar description username isVerified');
 
         res.status(200).json({
             success: true,
