@@ -89,11 +89,24 @@ export const createProduct = async (req, res, next) => {
         let parsedSizes = [];
         let parsedColors = [];
         
-        if (sizes) {
-            parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+        if (sizes && typeof sizes === 'string' && sizes.trim() !== '') {
+            try {
+                parsedSizes = JSON.parse(sizes);
+            } catch (e) {
+                parsedSizes = sizes.split(',').map(s => s.trim());
+            }
+        } else if (Array.isArray(sizes)) {
+            parsedSizes = sizes;
         }
-        if (colors) {
-            parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+
+        if (colors && typeof colors === 'string' && colors.trim() !== '') {
+            try {
+                parsedColors = JSON.parse(colors);
+            } catch (e) {
+                parsedColors = colors.split(',').map(c => c.trim());
+            }
+        } else if (Array.isArray(colors)) {
+            parsedColors = colors;
         }
 
         const product = await Product.create({
