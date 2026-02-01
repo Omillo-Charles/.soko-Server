@@ -72,7 +72,7 @@ const userSchema = mongoose.Schema({
         enum: ["buyer", "seller"],
         default: "buyer",
     },
-    addresses: [addressSchema]
+    addresses: [addressSchema],
 }, { timestamps: true });
 
 const User = userConnection.model("User", userSchema);
