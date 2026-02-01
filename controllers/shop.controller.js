@@ -81,7 +81,9 @@ export const getMyShop = async (req, res, next) => {
 
 export const getShops = async (req, res, next) => {
     try {
-        const shops = await Shop.find().limit(20);
+        const { limit } = req.query;
+        const limitValue = parseInt(limit) || 20;
+        const shops = await Shop.find().limit(limitValue);
         
         const shopsWithCounts = await Promise.all(shops.map(async (shop) => {
             const productsCount = await Product.countDocuments({ shop: shop._id });
