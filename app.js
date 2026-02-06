@@ -13,6 +13,7 @@ import wishlistRouter from "./routes/wishlist.routes.js";
 import statsRouter from "./routes/stats.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import orderRouter from "./routes/order.routes.js";
+import paymentRouter from "./routes/payment.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import passport from "./config/passport.js";
 
@@ -41,6 +42,7 @@ app.use("/api/v1/wishlist", wishlistRouter);
 app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/orders", orderRouter);
+app.use("/api/v1/payments", paymentRouter);
 
 app.get("/", (req, res)=>{
   res.send({
