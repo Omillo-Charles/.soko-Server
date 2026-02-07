@@ -1,6 +1,135 @@
 import Product from "../models/product.model.js";
 import Shop from "../models/shop.model.js";
+import Activity from "../models/activity.model.js";
 import Rating from "../models/rating.model.js";
+
+export const trackActivity = async (req, res, next) => {
+    try {
+        const { type, productId, category, searchQuery } = req.body;
+        const userId = req.user._id;
+
+        // Weights for different activities
+        const weights = {
+            view: 1,
+            click: 2,
+            search: 3,
+            wishlist: 5,
+            cart: 7,
+            purchase: 10
+        };
+
+        const activity = await Activity.create({
+            userId,
+            type,
+            productId,
+            category,
+            searchQuery,
+            weight: weights[type] || 1
+        });
+
+        res.status(201).json({
+            success: true,
+            data: activity
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getPersonalizedFeed = async (req, res, next) => {
+    try {
+        const userId = req.user ? req.user._id : null;
+        const { limit = 12 } = req.query;
+        const limitValue = parseInt(limit);
+
+        if (!userId) {
+            // Fallback for non-logged in users: return latest products
+            const products = await Product.find({})
+                .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
+                .sort({ createdAt: -1 })
+                .limit(limitValue);
+            
+            return res.status(200).json({ success: true, data: products });
+        }
+
+        // 1. Get user's recent activities to determine preferences
+        const recentActivities = await Activity.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(100);
+
+        if (recentActivities.length === 0) {
+            // Fallback for users with no activity
+            const products = await Product.find({})
+                .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
+                .sort({ createdAt: -1 })
+                .limit(limitValue);
+            return res.status(200).json({ success: true, data: products });
+        }
+
+        // 2. Calculate category and product weights
+        const categoryWeights = {};
+        const productWeights = {};
+
+        recentActivities.forEach(activity => {
+            if (activity.category) {
+                categoryWeights[activity.category] = (categoryWeights[activity.category] || 0) + activity.weight;
+            }
+            if (activity.productId) {
+                productWeights[activity.productId] = (productWeights[activity.productId] || 0) + activity.weight;
+            }
+        });
+
+        // 3. Get top categories
+        const sortedCategories = Object.entries(categoryWeights)
+            .sort((a, b) => b[1] - a[1])
+            .map(entry => entry[0]);
+
+        // 4. Build recommendation query
+        // Boost products from top categories and recently interacted products
+        const topCategories = sortedCategories.slice(0, 3);
+        
+        let products = await Product.find({
+            // Exclude products already purchased if we had that logic, 
+            // for now just show everything but boosted
+        })
+        .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop });
+
+        // 5. Apply scoring in-memory (for simple implementation)
+        const scoredProducts = products.map(product => {
+            let score = 0;
+            
+            // Boost by category preference
+            const catIndex = topCategories.indexOf(product.category);
+            if (catIndex !== -1) {
+                score += (3 - catIndex) * 10; // 30 for top cat, 20 for second, 10 for third
+            }
+
+            // Boost by specific product interaction
+            if (productWeights[product._id.toString()]) {
+                score += productWeights[product._id.toString()] * 2;
+            }
+
+            // Recency boost (simple)
+            const daysOld = (Date.now() - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+            score += Math.max(0, 20 - daysOld); // Up to 20 points for new products
+
+            return { product, score };
+        });
+
+        // Sort by score and take limit
+        const finalProducts = scoredProducts
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limitValue)
+            .map(item => item.product);
+
+        res.status(200).json({
+            success: true,
+            data: finalProducts
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const rateProduct = async (req, res, next) => {
     try {
