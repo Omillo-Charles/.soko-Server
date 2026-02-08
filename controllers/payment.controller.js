@@ -3,7 +3,8 @@ import {
     MPESA_SHORTCODE, 
     MPESA_PASSKEY, 
     MPESA_CALLBACK_URL, 
-    MPESA_ENVIRONMENT 
+    MPESA_ENVIRONMENT,
+    BACKEND_TUNNEL_URL
 } from "../config/env.js";
 import { getMpesaAccessToken, getMpesaTimestamp } from "../utils/mpesa.js";
 import MpesaTransaction from "../models/mpesaTransaction.model.js";
@@ -31,6 +32,11 @@ export const initiateSTKPush = async (req, res, next) => {
             ? "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
             : "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
 
+        // Use BACKEND_TUNNEL_URL if available, otherwise fallback to MPESA_CALLBACK_URL
+        const callbackUrl = BACKEND_TUNNEL_URL 
+            ? `${BACKEND_TUNNEL_URL.replace(/\/$/, '')}/api/v1/payments/callback`
+            : MPESA_CALLBACK_URL;
+
         const response = await axios.post(url, {
             BusinessShortCode: MPESA_SHORTCODE,
             Password: password,
@@ -40,7 +46,7 @@ export const initiateSTKPush = async (req, res, next) => {
             PartyA: formattedPhone,
             PartyB: MPESA_SHORTCODE,
             PhoneNumber: formattedPhone,
-            CallBackURL: MPESA_CALLBACK_URL,
+            CallBackURL: callbackUrl,
             AccountReference: ".Soko Ecommerce",
             TransactionDesc: "Premium Upgrade"
         }, {
