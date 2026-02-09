@@ -1,4 +1,6 @@
 import axios from "axios";
+import User from "../models/user.model.js";
+import Shop from "../models/shop.model.js";
 import { 
     MPESA_SHORTCODE, 
     MPESA_PASSKEY, 
@@ -113,8 +115,38 @@ export const stkCallback = async (req, res) => {
             transaction.mpesaReceiptNumber = items.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
             transaction.transactionDate = new Date(); // Or parse from timestamp if needed
             
-            // Here you would trigger the user's premium status update
-            // e.g., if (transaction.metadata?.type === 'premium') { ... }
+            // Handle Premium Upgrade
+            if (transaction.metadata?.type === "premium_upgrade") {
+                const { planName, isAnnual } = transaction.metadata;
+                const userId = transaction.userId;
+
+                const user = await User.findById(userId);
+                if (user) {
+                    user.isPremium = true;
+                    user.premiumPlan = planName;
+                    
+                    // Set expiration date
+                    const expiryDate = new Date();
+                    if (isAnnual) {
+                        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                    } else {
+                        expiryDate.setMonth(expiryDate.getMonth() + 1);
+                    }
+                    user.premiumUntil = expiryDate;
+                    await user.save();
+
+                    // Also verify the shop if the user is a seller
+                    if (user.accountType === "seller") {
+                        await Shop.findOneAndUpdate(
+                            { owner: userId },
+                            { isVerified: true }
+                        );
+                    }
+                    
+                    console.log(`Premium status activated for user ${user.email} until ${expiryDate}`);
+                }
+            }
+            
             console.log(`Payment successful for ${transaction.phoneNumber}. Receipt: ${transaction.mpesaReceiptNumber}`);
         } else {
             // Failed or Cancelled
@@ -130,5 +162,25 @@ export const stkCallback = async (req, res) => {
     } catch (error) {
         console.error("Callback Error:", error.message);
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getTransactionStatus = async (req, res, next) => {
+    try {
+        const { checkoutRequestId } = req.params;
+        const transaction = await MpesaTransaction.findOne({ checkoutRequestId });
+
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: "Transaction not found" });
+        }
+
+        res.status(200).json({
+            success: true,
+            status: transaction.status,
+            resultCode: transaction.resultCode,
+            resultDesc: transaction.resultDesc
+        });
+    } catch (error) {
+        next(error);
     }
 };

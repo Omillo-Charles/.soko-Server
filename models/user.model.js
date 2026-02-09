@@ -72,6 +72,19 @@ const userSchema = mongoose.Schema({
         enum: ["buyer", "seller"],
         default: "buyer",
     },
+    isPremium: {
+        type: Boolean,
+        default: false,
+    },
+    premiumPlan: {
+        type: String,
+        enum: ["Starter", "Professional", "Business", "Enterprise", null],
+        default: null,
+    },
+    premiumUntil: {
+        type: Date,
+        default: null,
+    },
     addresses: [addressSchema],
 }, { timestamps: true });
 
