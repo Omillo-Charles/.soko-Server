@@ -6,8 +6,18 @@ import { upload } from "../config/cloudinary.js";
 const productRouter = Router();
 
 // Feed and Tracking
-productRouter.get("/feed", authorize, getPersonalizedFeed);
-productRouter.post("/track", authorize, trackActivity);
+productRouter.get("/feed", (req, res, next) => {
+    if (req.headers.authorization) {
+        return authorize(req, res, next);
+    }
+    next();
+}, getPersonalizedFeed);
+productRouter.post("/track", (req, res, next) => {
+    if (req.headers.authorization) {
+        return authorize(req, res, next);
+    }
+    next();
+}, trackActivity);
 
 productRouter.post("/", authorize, upload.array('image', 3), createProduct);
 productRouter.post("/:id/rate", authorize, rateProduct);

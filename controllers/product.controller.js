@@ -6,7 +6,15 @@ import Rating from "../models/rating.model.js";
 export const trackActivity = async (req, res, next) => {
     try {
         const { type, productId, category, searchQuery } = req.body;
-        const userId = req.user._id;
+        const userId = req.user ? req.user._id : null;
+
+        if (!userId) {
+            // Skip tracking for guests for now, or you could implement anonymous tracking
+            return res.status(200).json({
+                success: true,
+                message: "Activity skipped for guest"
+            });
+        }
 
         // Weights for different activities
         const weights = {
@@ -40,7 +48,7 @@ export const getPersonalizedFeed = async (req, res, next) => {
     try {
         const userId = req.user ? req.user._id : null;
         const { limit = 12 } = req.query;
-        const limitValue = parseInt(limit);
+        const limitValue = parseInt(limit) || 12;
 
         if (!userId) {
             // Fallback for non-logged in users: return latest products
@@ -307,18 +315,21 @@ export const getProducts = async (req, res, next) => {
         }
 
         const products = await productsQuery;
+        const total = await Product.countDocuments(query);
 
         res.status(200).json({
             success: true,
             data: products,
             pagination: limitValue > 0 ? {
-                total: await Product.countDocuments(query),
+                total,
                 page: parseInt(page),
-                limit: limitValue
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
             } : (limitValue === -1 ? {
                 total: products.length,
                 page: 1,
-                limit: products.length
+                limit: products.length,
+                pages: 1
             } : undefined)
         });
     } catch (error) {
@@ -358,18 +369,21 @@ export const getProductsByShopId = async (req, res, next) => {
         }
 
         const products = await queryBuilder;
+        const total = await Product.countDocuments(query);
 
         res.status(200).json({
             success: true,
             data: products,
             pagination: limitValue > 0 ? {
-                total: await Product.countDocuments(query),
+                total,
                 page: parseInt(page),
-                limit: limitValue
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
             } : (limitValue === -1 ? {
                 total: products.length,
                 page: 1,
-                limit: products.length
+                limit: products.length,
+                pages: 1
             } : undefined)
         });
     } catch (error) {
