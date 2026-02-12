@@ -135,6 +135,7 @@ export const getPersonalizedFeed = async (req, res, next) => {
             data: finalProducts
         });
     } catch (error) {
+        console.error("Error in getPersonalizedFeed:", error);
         next(error);
     }
 };
@@ -297,8 +298,9 @@ export const getProducts = async (req, res, next) => {
             if (maxPrice) query.price.$lte = parseFloat(maxPrice);
         }
 
-        const limitValue = parseInt(limit) || 0;
-        const skipValue = (parseInt(page) - 1) * limitValue;
+        const limitValue = parseInt(limit);
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
 
         let productsQuery = Product.find(query)
             .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
@@ -322,7 +324,7 @@ export const getProducts = async (req, res, next) => {
             data: products,
             pagination: limitValue > 0 ? {
                 total,
-                page: parseInt(page),
+                page: pageValue,
                 limit: limitValue,
                 pages: Math.ceil(total / limitValue)
             } : (limitValue === -1 ? {
@@ -330,9 +332,15 @@ export const getProducts = async (req, res, next) => {
                 page: 1,
                 limit: products.length,
                 pages: 1
-            } : undefined)
+            } : {
+                total,
+                page: pageValue,
+                limit: 100,
+                pages: Math.ceil(total / 100)
+            })
         });
     } catch (error) {
+        console.error("Error in getProducts:", error);
         next(error);
     }
 };
@@ -342,8 +350,9 @@ export const getProductsByShopId = async (req, res, next) => {
         const { id } = req.params;
         const { minPrice, maxPrice, limit, page = 1 } = req.query;
         
-        const limitValue = parseInt(limit) || 0;
-        const skipValue = (parseInt(page) - 1) * limitValue;
+        const limitValue = parseInt(limit);
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
 
         let query = { shop: id };
 
@@ -376,7 +385,7 @@ export const getProductsByShopId = async (req, res, next) => {
             data: products,
             pagination: limitValue > 0 ? {
                 total,
-                page: parseInt(page),
+                page: pageValue,
                 limit: limitValue,
                 pages: Math.ceil(total / limitValue)
             } : (limitValue === -1 ? {
@@ -384,9 +393,15 @@ export const getProductsByShopId = async (req, res, next) => {
                 page: 1,
                 limit: products.length,
                 pages: 1
-            } : undefined)
+            } : {
+                total,
+                page: pageValue,
+                limit: 100,
+                pages: Math.ceil(total / 100)
+            })
         });
     } catch (error) {
+        console.error("Error in getProductsByShopId:", error);
         next(error);
     }
 };
