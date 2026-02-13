@@ -11,7 +11,9 @@ import {
     getShopFollowing,
     checkUsernameAvailability,
     rateShop,
-    getShopReviews
+    getShopReviews,
+    getShopByHandle,
+    getShopReviewsByHandle
 } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
@@ -22,6 +24,7 @@ shopRouter.get("/", getShops);
 shopRouter.post("/", authorize, createShop);
 shopRouter.get("/my-shop", authorize, getMyShop);
 shopRouter.get("/:id", getShopById);
+shopRouter.get("/handle/:username", getShopByHandle);
 shopRouter.get("/check-username/:username", checkUsernameAvailability);
 shopRouter.put("/my-shop", authorize, updateShop);
 shopRouter.put("/my-shop/branding", authorize, upload.fields([
@@ -33,6 +36,7 @@ shopRouter.post("/:id/follow", authorize, toggleFollowShop);
 shopRouter.get("/:id/followers", getShopFollowers);
 shopRouter.get("/:id/following", getShopFollowing);
 shopRouter.get("/:id/reviews", getShopReviews);
+shopRouter.get("/handle/:username/reviews", getShopReviewsByHandle);
 shopRouter.post("/:id/rate", authorize, rateShop);
 
 export default shopRouter;

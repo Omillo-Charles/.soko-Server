@@ -406,6 +406,74 @@ export const getProductsByShopId = async (req, res, next) => {
     }
 };
 
+export const getProductsByShopHandle = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const { minPrice, maxPrice, limit, page = 1 } = req.query;
+
+        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        const limitValue = parseInt(limit);
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
+
+        let query = { shop: shop._id };
+
+        // Price filtering
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = parseFloat(minPrice);
+            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+        }
+
+        let queryBuilder = Product.find(query)
+            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
+            .sort({ createdAt: -1 });
+
+        // If limit is explicitly -1, don't apply any limit
+        if (limitValue > 0) {
+            queryBuilder = queryBuilder.limit(limitValue).skip(skipValue);
+        } else if (limitValue === -1) {
+            // No limit applied
+        } else {
+            // Default limit if not provided or 0
+            queryBuilder = queryBuilder.limit(100).skip(skipValue);
+        }
+
+        const products = await queryBuilder;
+        const total = await Product.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            data: products,
+            pagination: limitValue > 0 ? {
+                total,
+                page: pageValue,
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
+            } : (limitValue === -1 ? {
+                total: products.length,
+                page: 1,
+                limit: products.length,
+                pages: 1
+            } : {
+                total,
+                page: pageValue,
+                limit: 100,
+                pages: Math.ceil(total / 100)
+            })
+        });
+    } catch (error) {
+        console.error("Error in getProductsByShopHandle:", error);
+        next(error);
+    }
+};
+
 export const getMyProducts = async (req, res, next) => {
     try {
         const shop = await Shop.findOne({ owner: req.user._id });

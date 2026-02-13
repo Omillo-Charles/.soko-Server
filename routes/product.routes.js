@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createProduct, getProducts, getProductById, getMyProducts, updateProduct, deleteProduct, getProductsByShopId, rateProduct, getPersonalizedFeed, trackActivity } from "../controllers/product.controller.js";
+import { createProduct, getProducts, getProductById, getMyProducts, updateProduct, deleteProduct, getProductsByShopId, rateProduct, getPersonalizedFeed, trackActivity, getProductsByShopHandle } from "../controllers/product.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
 
@@ -23,6 +23,7 @@ productRouter.post("/", authorize, upload.array('image', 3), createProduct);
 productRouter.post("/:id/rate", authorize, rateProduct);
 productRouter.get("/", getProducts);
 productRouter.get("/shop/:id", getProductsByShopId);
+productRouter.get("/shop/handle/:username", getProductsByShopHandle);
 productRouter.get("/my-products", authorize, getMyProducts);
 productRouter.get("/:id", getProductById);
 productRouter.put("/:id", authorize, upload.array('image', 3), updateProduct);

@@ -138,6 +138,65 @@ export const getShopById = async (req, res, next) => {
     }
 };
 
+export const getShopByHandle = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const productsCount = await Product.countDocuments({ shop: shop._id });
+        const followersCount = shop.followers ? shop.followers.length : (shop.followersCount || 0);
+        const followingCount = await Shop.countDocuments({ followers: shop.owner });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ...shop.toObject(),
+                productsCount,
+                followersCount,
+                followingCount,
+                rating: shop.rating || 0,
+                reviewsCount: shop.reviewsCount || 0
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopReviewsByHandle = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const reviews = await Rating.find({ shop: shop._id })
+            .populate({
+                path: 'user',
+                model: User,
+                select: 'name avatar username'
+            })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: reviews
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateShop = async (req, res, next) => {
     try {
         const shop = await Shop.findOne({ owner: req.user._id });
