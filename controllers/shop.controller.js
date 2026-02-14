@@ -197,6 +197,54 @@ export const getShopReviewsByHandle = async (req, res, next) => {
     }
 };
 
+export const getShopFollowersByHandle = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const shop = await Shop.findOne({ username: username.toLowerCase() }).populate({
+            path: 'followers',
+            select: 'name email avatar username',
+            model: 'User'
+        });
+
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        res.status(200).json({
+            success: true,
+            data: shop.followers || []
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getShopFollowingByHandle = async (req, res, next) => {
+    try {
+        const { username } = req.params;
+        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        
+        if (!shop) {
+            const error = new Error('Shop not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Find shops where this shop's owner is in the followers array
+        const following = await Shop.find({ followers: shop.owner })
+            .select('name avatar description username isVerified followersCount');
+
+        res.status(200).json({
+            success: true,
+            data: following || []
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const updateShop = async (req, res, next) => {
     try {
         const shop = await Shop.findOne({ owner: req.user._id });
@@ -356,9 +404,16 @@ export const toggleFollowShop = async (req, res, next) => {
 export const getShopFollowers = async (req, res, next) => {
     try {
         const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            const error = new Error('Invalid shop ID');
+            error.statusCode = 400;
+            throw error;
+        }
+
         const shop = await Shop.findById(id).populate({
             path: 'followers',
-            select: 'name email avatar',
+            select: 'name email avatar username',
             model: 'User'
         });
 
@@ -370,7 +425,7 @@ export const getShopFollowers = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            data: shop.followers
+            data: shop.followers || []
         });
     } catch (error) {
         next(error);
@@ -380,6 +435,13 @@ export const getShopFollowers = async (req, res, next) => {
 export const getShopFollowing = async (req, res, next) => {
     try {
         const { id } = req.params;
+        
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            const error = new Error('Invalid shop ID');
+            error.statusCode = 400;
+            throw error;
+        }
+
         const shop = await Shop.findById(id);
         
         if (!shop) {
@@ -390,11 +452,11 @@ export const getShopFollowing = async (req, res, next) => {
 
         // Find shops where this shop's owner is in the followers array
         const following = await Shop.find({ followers: shop.owner })
-            .select('name avatar description username isVerified');
+            .select('name avatar description username isVerified followersCount');
 
         res.status(200).json({
             success: true,
-            data: following
+            data: following || []
         });
     } catch (error) {
         next(error);

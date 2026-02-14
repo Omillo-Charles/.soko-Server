@@ -13,7 +13,9 @@ import {
     rateShop,
     getShopReviews,
     getShopByHandle,
-    getShopReviewsByHandle
+    getShopReviewsByHandle,
+    getShopFollowersByHandle,
+    getShopFollowingByHandle
 } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/cloudinary.js";
@@ -37,6 +39,8 @@ shopRouter.get("/:id/followers", getShopFollowers);
 shopRouter.get("/:id/following", getShopFollowing);
 shopRouter.get("/:id/reviews", getShopReviews);
 shopRouter.get("/handle/:username/reviews", getShopReviewsByHandle);
+shopRouter.get("/handle/:username/followers", getShopFollowersByHandle);
+shopRouter.get("/handle/:username/following", getShopFollowingByHandle);
 shopRouter.post("/:id/rate", authorize, rateShop);
 
 export default shopRouter;
