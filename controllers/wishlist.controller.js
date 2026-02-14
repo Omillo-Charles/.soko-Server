@@ -38,27 +38,30 @@ export const toggleWishlist = async (req, res, next) => {
         const isIncluded = wishlist.products.some(id => id.toString() === productId.toString());
 
         if (isIncluded) {
-            // Remove if already exists
-            await Wishlist.updateOne(
-                { user: req.user._id },
-                { $pull: { products: productId } }
+            // Remove if already exists - Use findOneAndUpdate with condition to prevent double decrementing
+            const updatedWishlistDoc = await Wishlist.findOneAndUpdate(
+                { user: req.user._id, products: productId },
+                { $pull: { products: productId } },
+                { new: true }
             );
+
+            if (updatedWishlistDoc) {
+                // Only decrement if the product was actually removed
+                await Product.findByIdAndUpdate(productId, [
+                    { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
+                ]);
+            }
             
-            // Decrement likesCount on product (ensure it doesn't go below 0)
-            await Product.findByIdAndUpdate(productId, [
-                { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
-            ], { updatePipeline: true });
-            
-            const updatedWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
+            const finalWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
             
             res.status(200).json({
                 success: true,
                 message: "Removed from wishlist",
-                data: updatedWishlist,
+                data: finalWishlist,
                 action: 'removed'
             });
         } else {
-            // Add if not exists - Use findOneAndUpdate with condition to prevent double counting
+            // Add if not exists - Use findOneAndUpdate with condition to prevent double incrementing
             const updatedWishlistDoc = await Wishlist.findOneAndUpdate(
                 { user: req.user._id, products: { $ne: productId } },
                 { $addToSet: { products: productId } },
@@ -66,7 +69,7 @@ export const toggleWishlist = async (req, res, next) => {
             );
 
             if (updatedWishlistDoc) {
-                // Only increment if the product was actually added (not already there)
+                // Only increment if the product was actually added
                 await Product.findByIdAndUpdate(productId, { $inc: { likesCount: 1 } });
             }
             
