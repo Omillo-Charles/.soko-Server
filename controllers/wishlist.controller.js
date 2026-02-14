@@ -49,7 +49,7 @@ export const toggleWishlist = async (req, res, next) => {
                 // Only decrement if the product was actually removed
                 await Product.findByIdAndUpdate(productId, [
                     { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
-                ]);
+                ], { updatePipeline: true });
             }
             
             const finalWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
