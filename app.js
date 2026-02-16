@@ -46,8 +46,8 @@ app.use("/api/v1/payments", paymentRouter);
 
 app.get("/", (req, res)=>{
   res.send({
-    title: "Duuka Backend API",
-    body: "Welcome to the Duuka Backend API"
+    title: ".soko Backend API",
+    body: "Welcome to the .soko Backend API"
   });
 })
 
@@ -63,7 +63,7 @@ app.use((req, res) => {
 app.use(errorMiddleware);
 
 app.listen(PORT, async ()=>{
-  console.log(`The Duuka Backend API is running on http://localhost:${PORT}`);
+  console.log(`The .soko Backend API is running on http://localhost:${PORT}`);
 });
 
 export default app;
