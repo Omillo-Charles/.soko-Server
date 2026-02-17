@@ -41,35 +41,6 @@ const activatePremium = async (userId, planName, isAnnual) => {
     return false;
 };
 
-// Helper to query Safaricom for status
-const querySafaricomStatus = async (checkoutRequestId) => {
-    try {
-        const accessToken = await getMpesaAccessToken();
-        const timestamp = getMpesaTimestamp();
-        const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
-        
-        const url = MPESA_ENVIRONMENT === "sandbox"
-            ? "https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query"
-            : "https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query";
-
-        const response = await axios.post(url, {
-            BusinessShortCode: MPESA_SHORTCODE,
-            Password: password,
-            Timestamp: timestamp,
-            CheckoutRequestID: checkoutRequestId
-        }, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`
-            }
-        });
-
-        return response.data;
-    } catch (error) {
-        console.error("M-Pesa Query Error:", error.response?.data || error.message);
-        return null;
-    }
-};
-
 export const initiateSTKPush = async (req, res, next) => {
     try {
         const { phoneNumber, amount, metadata } = req.body;
@@ -201,54 +172,6 @@ export const getTransactionStatus = async (req, res, next) => {
 
         if (!transaction) {
             return res.status(404).json({ success: false, message: "Transaction not found" });
-        }
-
-        // If still pending, actively query Safaricom
-        if (transaction.status === 'pending') {
-            console.log(`Transaction ${checkoutRequestId} is pending. Querying Safaricom...`);
-            const queryResult = await querySafaricomStatus(checkoutRequestId);
-            
-            if (queryResult && queryResult.ResponseCode === "0") {
-                // Check the ResultCode from the query response
-                // Note: Structure might vary slightly depending on whether it's the raw response or callback format
-                // Query response usually has ResultCode at top level for the query request itself, 
-                // but the actual transaction status is in ResultCode/ResultDesc fields if available, 
-                // OR it just confirms the request was received.
-                // WAIT: The synchronous response to the query request just says "We received your request".
-                // Safaricom sends the ACTUAL status to the queue/callback.
-                // HOWEVER, in Sandbox, sometimes it returns the status directly or we can infer if we get a specific code.
-                
-                // Correction: The Query API is synchronous in terms of "I accepted your query", 
-                // but the result comes via Callback usually. 
-                // BUT, for STK Push, the query response payload DOES contain the status if the transaction is complete.
-                
-                if (queryResult.ResultCode === "0") {
-                     // Success
-                     transaction.status = 'completed';
-                     transaction.resultCode = 0;
-                     transaction.resultDesc = "Confirmed via Query";
-                     
-                     if (transaction.metadata?.type === "premium_upgrade") {
-                        const { planName, isAnnual } = transaction.metadata;
-                        await activatePremium(transaction.userId, planName, isAnnual);
-                    }
-                    await transaction.save();
-                } else if (queryResult.ResultCode !== "0" && queryResult.ResponseCode === "0") {
-                    // This means query request was success, but the transaction itself might be failed or pending
-                    // Safaricom Query Response:
-                    // ResponseCode: "0" -> Request accepted
-                    // ResultCode: "0" -> Transaction Successful
-                    // ResultCode: "1032" -> Cancelled
-                    // etc.
-                    
-                    if (queryResult.ResultCode && queryResult.ResultCode !== "0") {
-                        transaction.status = 'failed';
-                        transaction.resultCode = queryResult.ResultCode;
-                        transaction.resultDesc = queryResult.ResultDesc || "Failed";
-                        await transaction.save();
-                    }
-                }
-            }
         }
 
         res.status(200).json({
