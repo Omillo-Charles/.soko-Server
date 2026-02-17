@@ -145,6 +145,21 @@ export const stkCallback = async (req, res) => {
         transaction.resultCode = ResultCode;
         transaction.resultDesc = ResultDesc;
 
+        if (transaction.status === 'completed') {
+            console.log(`Transaction ${CheckoutRequestID} already completed. Updating metadata only.`);
+            
+            // Still try to extract receipt number if we missed it from Query
+            if (CallbackMetadata && CallbackMetadata.Item) {
+                const items = CallbackMetadata.Item;
+                const receiptItem = items.find(i => i.Name === 'MpesaReceiptNumber');
+                if (receiptItem) {
+                    transaction.mpesaReceiptNumber = receiptItem.Value;
+                    await transaction.save();
+                }
+            }
+            return res.status(200).json({ success: true });
+        }
+
         if (ResultCode === 0) {
             // Success
             transaction.status = 'completed';
