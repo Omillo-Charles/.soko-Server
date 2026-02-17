@@ -137,14 +137,28 @@ export const stkCallback = async (req, res) => {
             transaction.status = 'completed';
             
             // Extract metadata
-            const items = CallbackMetadata.Item;
-            transaction.mpesaReceiptNumber = items.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
+            if (CallbackMetadata && CallbackMetadata.Item) {
+                const items = CallbackMetadata.Item;
+                const receiptItem = items.find(i => i.Name === 'MpesaReceiptNumber');
+                if (receiptItem) {
+                    transaction.mpesaReceiptNumber = receiptItem.Value;
+                }
+            }
             transaction.transactionDate = new Date();
             
+            // Save transaction FIRST before attempting activation
+            await transaction.save();
+
             // Handle Premium Upgrade
             if (transaction.metadata?.type === "premium_upgrade") {
-                const { planName, isAnnual } = transaction.metadata;
-                await activatePremium(transaction.userId, planName, isAnnual);
+                try {
+                    const { planName, isAnnual } = transaction.metadata;
+                    await activatePremium(transaction.userId, planName, isAnnual);
+                } catch (activationError) {
+                    console.error("Premium Activation Error:", activationError);
+                    // We don't fail the transaction if activation fails, but we should log it
+                    // Ideally we should have a way to retry activation
+                }
             }
             
             console.log(`Payment successful for ${transaction.phoneNumber}. Receipt: ${transaction.mpesaReceiptNumber}`);
@@ -152,9 +166,8 @@ export const stkCallback = async (req, res) => {
             // Failed or Cancelled
             transaction.status = 'failed';
             console.log(`Payment failed for ${transaction.phoneNumber}: ${ResultDesc}`);
+            await transaction.save();
         }
-
-        await transaction.save();
 
         // Safaricom expects a 200 OK response
         res.status(200).json({ success: true });
@@ -172,6 +185,77 @@ export const getTransactionStatus = async (req, res, next) => {
 
         if (!transaction) {
             return res.status(404).json({ success: false, message: "Transaction not found" });
+        }
+
+        // If transaction is already completed or failed, return status
+        if (transaction.status !== 'pending') {
+            return res.status(200).json({
+                success: true,
+                status: transaction.status,
+                resultCode: transaction.resultCode,
+                resultDesc: transaction.resultDesc
+            });
+        }
+
+        // If pending, Query Safaricom API to check actual status
+        try {
+            const accessToken = await getMpesaAccessToken();
+            const timestamp = getMpesaTimestamp();
+            const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString("base64");
+
+            const url = MPESA_ENVIRONMENT === "sandbox"
+                ? "https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query"
+                : "https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query";
+
+            const response = await axios.post(url, {
+                BusinessShortCode: MPESA_SHORTCODE,
+                Password: password,
+                Timestamp: timestamp,
+                CheckoutRequestID: checkoutRequestId
+            }, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`
+                }
+            });
+
+            if (response.data.ResponseCode === "0") {
+                // We got a valid response from Safaricom Query
+                const { ResultCode, ResultDesc } = response.data;
+
+                transaction.resultCode = ResultCode;
+                transaction.resultDesc = ResultDesc;
+
+                if (ResultCode === "0") { // Note: Query API returns string "0" sometimes, callback returns number 0
+                    transaction.status = 'completed';
+                    transaction.transactionDate = new Date();
+                    await transaction.save();
+
+                    // Activate Premium if needed
+                    if (transaction.metadata?.type === "premium_upgrade") {
+                        const { planName, isAnnual } = transaction.metadata;
+                        await activatePremium(transaction.userId, planName, isAnnual);
+                    }
+                } else {
+                    // If ResultCode is NOT 0, it means the user cancelled or failed payment
+                    // BUT be careful: "1032" is Cancelled.
+                    // If Safaricom returns a ResultCode, the transaction is FINAL.
+                    transaction.status = 'failed';
+                    await transaction.save();
+                }
+
+                return res.status(200).json({
+                    success: true,
+                    status: transaction.status,
+                    resultCode: transaction.resultCode,
+                    resultDesc: transaction.resultDesc
+                });
+            } 
+            // If ResponseCode is not 0, maybe the request is still processing?
+            // "The service request is processed successfully" is ResponseCode 0.
+            
+        } catch (queryError) {
+            console.error("M-Pesa Query Error:", queryError.response?.data || queryError.message);
+            // If query fails, just return the current DB status (pending)
         }
 
         res.status(200).json({
