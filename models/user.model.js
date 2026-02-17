@@ -78,7 +78,7 @@ const userSchema = mongoose.Schema({
     },
     premiumPlan: {
         type: String,
-        enum: ["Starter", "Professional", "Business", "Enterprise", null],
+        enum: ["Starter", "Professional", "Business", "Enterprise", "Premium", null],
         default: null,
     },
     premiumUntil: {

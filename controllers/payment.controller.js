@@ -12,33 +12,42 @@ import MpesaTransaction from "../models/mpesaTransaction.model.js";
 
 // Helper to activate premium status
 const activatePremium = async (userId, planName, isAnnual) => {
-    const user = await User.findById(userId);
-    if (user) {
-        user.isPremium = true;
-        user.premiumPlan = planName;
+    try {
+        console.log(`Activating premium for user ${userId} with plan ${planName}`);
         
-        // Set expiration date
-        const expiryDate = new Date();
-        if (isAnnual) {
-            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-        } else {
-            expiryDate.setMonth(expiryDate.getMonth() + 1);
-        }
-        user.premiumUntil = expiryDate;
-        await user.save();
+        const user = await User.findById(userId);
+        if (user) {
+            user.isPremium = true;
+            user.premiumPlan = planName; // Make sure "Premium" is allowed in User model enum
+            
+            // Set expiration date
+            const expiryDate = new Date();
+            if (isAnnual) {
+                expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+            } else {
+                expiryDate.setMonth(expiryDate.getMonth() + 1);
+            }
+            user.premiumUntil = expiryDate;
+            await user.save();
 
-        // Also verify the shop if the user is a seller
-        if (user.accountType === "seller") {
-            await Shop.findOneAndUpdate(
-                { owner: userId },
-                { isVerified: true }
-            );
+            // Also verify the shop if the user is a seller
+            if (user.accountType === "seller") {
+                await Shop.findOneAndUpdate(
+                    { owner: userId },
+                    { isVerified: true }
+                );
+            }
+            
+            console.log(`Premium status activated for user ${user.email} until ${expiryDate}`);
+            return true;
+        } else {
+            console.error(`User ${userId} not found during activation`);
+            return false;
         }
-        
-        console.log(`Premium status activated for user ${user.email} until ${expiryDate}`);
-        return true;
+    } catch (error) {
+        console.error("Error in activatePremium:", error);
+        return false;
     }
-    return false;
 };
 
 export const initiateSTKPush = async (req, res, next) => {
@@ -46,6 +55,10 @@ export const initiateSTKPush = async (req, res, next) => {
         const { phoneNumber, amount, metadata } = req.body;
         console.log(`Initiating STK Push for amount: ${amount}, phone: ${phoneNumber}`);
         const userId = req.user?._id;
+
+        if (!userId) {
+             return res.status(401).json({ success: false, message: "User not authenticated" });
+        }
 
         if (!phoneNumber || !amount) {
             return res.status(400).json({ success: false, message: "Phone number and amount are required" });
