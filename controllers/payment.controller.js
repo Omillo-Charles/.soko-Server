@@ -13,6 +13,7 @@ import MpesaTransaction from "../models/mpesaTransaction.model.js";
 export const initiateSTKPush = async (req, res, next) => {
     try {
         const { phoneNumber, amount, metadata } = req.body;
+        console.log(`Initiating STK Push for amount: ${amount}, phone: ${phoneNumber}`);
         const userId = req.user?._id;
 
         if (!phoneNumber || !amount) {
