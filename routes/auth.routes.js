@@ -5,17 +5,18 @@ import { signInSchema, signUpSchema, forgotPasswordSchema, resetPasswordSchema, 
 import passport from "passport";
 import { FRONTEND_URL } from "../config/env.js";
 import authorize from "../middlewares/auth.middleware.js";
+import { authLimiter } from "../middlewares/limit.middleware.js";
 
 const authRouter = Router();
 
-authRouter.post("/sign-up", validate(signUpSchema), signUp);
-authRouter.post("/verify-email", validate(verifyEmailSchema), verifyEmail);
-authRouter.post("/sign-in", validate(signInSchema), signIn);
+authRouter.post("/sign-up", authLimiter, validate(signUpSchema), signUp);
+authRouter.post("/verify-email", authLimiter, validate(verifyEmailSchema), verifyEmail);
+authRouter.post("/sign-in", authLimiter, validate(signInSchema), signIn);
 authRouter.post("/sign-out", signOut);
 authRouter.post("/refresh", refresh);
-authRouter.post("/forgot-password", validate(forgotPasswordSchema), forgotPassword);
-authRouter.post("/reset-password/:token", validate(resetPasswordSchema), resetPassword);
-authRouter.post("/change-password", authorize, changePassword);
+authRouter.post("/forgot-password", authLimiter, validate(forgotPasswordSchema), forgotPassword);
+authRouter.post("/reset-password/:token", authLimiter, validate(resetPasswordSchema), resetPassword);
+authRouter.post("/change-password", authorize, authLimiter, changePassword);
 
 // Google Auth Routes
 authRouter.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
