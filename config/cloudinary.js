@@ -1,7 +1,8 @@
 import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import pkg from 'multer-storage-cloudinary';
 import multer from 'multer';
 import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } from './env.js';
+const CloudinaryStorageCtor = pkg.CloudinaryStorage || pkg.default || pkg;
 
 cloudinary.config({
   cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -9,7 +10,7 @@ cloudinary.config({
   api_secret: CLOUDINARY_API_SECRET
 });
 
-const storage = new CloudinaryStorage({
+const storage = new CloudinaryStorageCtor({
   cloudinary: cloudinary,
   params: async (req, file) => {
     let folder = 'duuka/others';
