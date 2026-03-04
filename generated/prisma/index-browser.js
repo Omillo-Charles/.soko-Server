@@ -121,6 +121,187 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.UserScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  password: 'password',
+  googleId: 'googleId',
+  githubId: 'githubId',
+  refreshToken: 'refreshToken',
+  resetPasswordToken: 'resetPasswordToken',
+  resetPasswordExpires: 'resetPasswordExpires',
+  isVerified: 'isVerified',
+  verificationOTP: 'verificationOTP',
+  verificationOTPExpires: 'verificationOTPExpires',
+  accountType: 'accountType',
+  isPremium: 'isPremium',
+  premiumPlan: 'premiumPlan',
+  premiumUntil: 'premiumUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AddressScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  type: 'type',
+  phone: 'phone',
+  city: 'city',
+  street: 'street',
+  isDefault: 'isDefault',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ShopScalarFieldEnum = {
+  id: 'id',
+  ownerId: 'ownerId',
+  name: 'name',
+  username: 'username',
+  description: 'description',
+  category: 'category',
+  address: 'address',
+  phone: 'phone',
+  email: 'email',
+  avatar: 'avatar',
+  banner: 'banner',
+  isVerified: 'isVerified',
+  rating: 'rating',
+  reviewsCount: 'reviewsCount',
+  followersCount: 'followersCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProductScalarFieldEnum = {
+  id: 'id',
+  shopId: 'shopId',
+  name: 'name',
+  description: 'description',
+  content: 'content',
+  price: 'price',
+  category: 'category',
+  stock: 'stock',
+  image: 'image',
+  images: 'images',
+  rating: 'rating',
+  reviewsCount: 'reviewsCount',
+  likesCount: 'likesCount',
+  repostsCount: 'repostsCount',
+  commentsCount: 'commentsCount',
+  sizes: 'sizes',
+  colors: 'colors',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CartScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CartItemScalarFieldEnum = {
+  id: 'id',
+  cartId: 'cartId',
+  productId: 'productId',
+  quantity: 'quantity',
+  size: 'size',
+  color: 'color',
+  image: 'image',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.WishlistScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.OrderScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  subtotal: 'subtotal',
+  totalAmount: 'totalAmount',
+  shippingFee: 'shippingFee',
+  status: 'status',
+  paymentStatus: 'paymentStatus',
+  paymentMethod: 'paymentMethod',
+  shippingName: 'shippingName',
+  shippingPhone: 'shippingPhone',
+  shippingCity: 'shippingCity',
+  shippingStreet: 'shippingStreet',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.OrderItemScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  productId: 'productId',
+  shopId: 'shopId',
+  name: 'name',
+  price: 'price',
+  quantity: 'quantity',
+  image: 'image',
+  size: 'size',
+  color: 'color',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CommentScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  userId: 'userId',
+  content: 'content',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RatingScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  shopId: 'shopId',
+  userId: 'userId',
+  rating: 'rating',
+  comment: 'comment',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ActivityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  productId: 'productId',
+  category: 'category',
+  searchQuery: 'searchQuery',
+  weight: 'weight',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.MpesaTransactionScalarFieldEnum = {
+  id: 'id',
+  merchantRequestId: 'merchantRequestId',
+  checkoutRequestId: 'checkoutRequestId',
+  resultCode: 'resultCode',
+  resultDesc: 'resultDesc',
+  amount: 'amount',
+  mpesaReceiptNumber: 'mpesaReceiptNumber',
+  transactionDate: 'transactionDate',
+  phoneNumber: 'phoneNumber',
+  status: 'status',
+  userId: 'userId',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ContactScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -136,13 +317,86 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+exports.AccountType = exports.$Enums.AccountType = {
+  buyer: 'buyer',
+  seller: 'seller'
+};
+
+exports.PremiumPlan = exports.$Enums.PremiumPlan = {
+  Free: 'Free',
+  Premium: 'Premium',
+  Enterprise: 'Enterprise'
+};
+
+exports.AddressType = exports.$Enums.AddressType = {
+  home: 'home',
+  work: 'work',
+  other: 'other'
+};
+
+exports.OrderStatus = exports.$Enums.OrderStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  cancelled: 'cancelled'
+};
+
+exports.PaymentStatus = exports.$Enums.PaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed'
+};
+
+exports.ActivityType = exports.$Enums.ActivityType = {
+  view: 'view',
+  click: 'click',
+  wishlist: 'wishlist',
+  cart: 'cart',
+  purchase: 'purchase',
+  search: 'search'
+};
+
+exports.TransactionStatus = exports.$Enums.TransactionStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  failed: 'failed'
+};
 
 exports.Prisma.ModelName = {
+  User: 'User',
+  Address: 'Address',
+  Shop: 'Shop',
+  Product: 'Product',
+  Cart: 'Cart',
+  CartItem: 'CartItem',
+  Wishlist: 'Wishlist',
+  Order: 'Order',
+  OrderItem: 'OrderItem',
+  Comment: 'Comment',
+  Rating: 'Rating',
+  Activity: 'Activity',
+  MpesaTransaction: 'MpesaTransaction',
   Contact: 'Contact'
 };
 

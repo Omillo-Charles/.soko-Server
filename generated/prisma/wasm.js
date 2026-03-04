@@ -93,6 +93,187 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.UserScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  password: 'password',
+  googleId: 'googleId',
+  githubId: 'githubId',
+  refreshToken: 'refreshToken',
+  resetPasswordToken: 'resetPasswordToken',
+  resetPasswordExpires: 'resetPasswordExpires',
+  isVerified: 'isVerified',
+  verificationOTP: 'verificationOTP',
+  verificationOTPExpires: 'verificationOTPExpires',
+  accountType: 'accountType',
+  isPremium: 'isPremium',
+  premiumPlan: 'premiumPlan',
+  premiumUntil: 'premiumUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AddressScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  type: 'type',
+  phone: 'phone',
+  city: 'city',
+  street: 'street',
+  isDefault: 'isDefault',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ShopScalarFieldEnum = {
+  id: 'id',
+  ownerId: 'ownerId',
+  name: 'name',
+  username: 'username',
+  description: 'description',
+  category: 'category',
+  address: 'address',
+  phone: 'phone',
+  email: 'email',
+  avatar: 'avatar',
+  banner: 'banner',
+  isVerified: 'isVerified',
+  rating: 'rating',
+  reviewsCount: 'reviewsCount',
+  followersCount: 'followersCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProductScalarFieldEnum = {
+  id: 'id',
+  shopId: 'shopId',
+  name: 'name',
+  description: 'description',
+  content: 'content',
+  price: 'price',
+  category: 'category',
+  stock: 'stock',
+  image: 'image',
+  images: 'images',
+  rating: 'rating',
+  reviewsCount: 'reviewsCount',
+  likesCount: 'likesCount',
+  repostsCount: 'repostsCount',
+  commentsCount: 'commentsCount',
+  sizes: 'sizes',
+  colors: 'colors',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CartScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CartItemScalarFieldEnum = {
+  id: 'id',
+  cartId: 'cartId',
+  productId: 'productId',
+  quantity: 'quantity',
+  size: 'size',
+  color: 'color',
+  image: 'image',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.WishlistScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.OrderScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  subtotal: 'subtotal',
+  totalAmount: 'totalAmount',
+  shippingFee: 'shippingFee',
+  status: 'status',
+  paymentStatus: 'paymentStatus',
+  paymentMethod: 'paymentMethod',
+  shippingName: 'shippingName',
+  shippingPhone: 'shippingPhone',
+  shippingCity: 'shippingCity',
+  shippingStreet: 'shippingStreet',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.OrderItemScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  productId: 'productId',
+  shopId: 'shopId',
+  name: 'name',
+  price: 'price',
+  quantity: 'quantity',
+  image: 'image',
+  size: 'size',
+  color: 'color',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CommentScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  userId: 'userId',
+  content: 'content',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RatingScalarFieldEnum = {
+  id: 'id',
+  productId: 'productId',
+  shopId: 'shopId',
+  userId: 'userId',
+  rating: 'rating',
+  comment: 'comment',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ActivityScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  productId: 'productId',
+  category: 'category',
+  searchQuery: 'searchQuery',
+  weight: 'weight',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.MpesaTransactionScalarFieldEnum = {
+  id: 'id',
+  merchantRequestId: 'merchantRequestId',
+  checkoutRequestId: 'checkoutRequestId',
+  resultCode: 'resultCode',
+  resultDesc: 'resultDesc',
+  amount: 'amount',
+  mpesaReceiptNumber: 'mpesaReceiptNumber',
+  transactionDate: 'transactionDate',
+  phoneNumber: 'phoneNumber',
+  status: 'status',
+  userId: 'userId',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ContactScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -108,13 +289,86 @@ exports.Prisma.SortOrder = {
   desc: 'desc'
 };
 
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
+};
+
 exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+exports.AccountType = exports.$Enums.AccountType = {
+  buyer: 'buyer',
+  seller: 'seller'
+};
+
+exports.PremiumPlan = exports.$Enums.PremiumPlan = {
+  Free: 'Free',
+  Premium: 'Premium',
+  Enterprise: 'Enterprise'
+};
+
+exports.AddressType = exports.$Enums.AddressType = {
+  home: 'home',
+  work: 'work',
+  other: 'other'
+};
+
+exports.OrderStatus = exports.$Enums.OrderStatus = {
+  pending: 'pending',
+  processing: 'processing',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  cancelled: 'cancelled'
+};
+
+exports.PaymentStatus = exports.$Enums.PaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  failed: 'failed'
+};
+
+exports.TransactionStatus = exports.$Enums.TransactionStatus = {
+  pending: 'pending',
+  completed: 'completed',
+  failed: 'failed'
+};
+
+exports.ActivityType = exports.$Enums.ActivityType = {
+  view: 'view',
+  click: 'click',
+  wishlist: 'wishlist',
+  cart: 'cart',
+  purchase: 'purchase',
+  search: 'search'
+};
 
 exports.Prisma.ModelName = {
+  User: 'User',
+  Address: 'Address',
+  Shop: 'Shop',
+  Product: 'Product',
+  Cart: 'Cart',
+  CartItem: 'CartItem',
+  Wishlist: 'Wishlist',
+  Order: 'Order',
+  OrderItem: 'OrderItem',
+  Comment: 'Comment',
+  Rating: 'Rating',
+  Activity: 'Activity',
+  MpesaTransaction: 'MpesaTransaction',
   Contact: 'Contact'
 };
 /**
@@ -164,13 +418,13 @@ const config = {
       }
     }
   },
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\n// Contact Form Model\nmodel Contact {\n  id        String   @id @default(cuid())\n  name      String\n  email     String\n  subject   String\n  message   String   @db.Text\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  @@index([email])\n  @@index([createdAt(sort: Desc)])\n  @@map(\"contacts\")\n}\n",
-  "inlineSchemaHash": "bf6cc9e2152d4daba85ec862cf20ce4d8e775c87207a08294663e22cbd5744d3",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider = \"prisma-client-js\"\n  output   = \"../generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\n// ============================================\n// ENUMS\n// ============================================\n\nenum AccountType {\n  buyer\n  seller\n}\n\nenum PremiumPlan {\n  Free\n  Premium\n  Enterprise\n}\n\nenum AddressType {\n  home\n  work\n  other\n}\n\nenum OrderStatus {\n  pending\n  processing\n  shipped\n  delivered\n  cancelled\n}\n\nenum PaymentStatus {\n  pending\n  paid\n  failed\n}\n\nenum TransactionStatus {\n  pending\n  completed\n  failed\n}\n\nenum ActivityType {\n  view\n  click\n  wishlist\n  cart\n  purchase\n  search\n}\n\n// ============================================\n// USER & AUTHENTICATION\n// ============================================\n\nmodel User {\n  id                     String       @id @default(cuid())\n  name                   String\n  email                  String       @unique\n  password               String? // Optional for OAuth users\n  googleId               String?      @unique\n  githubId               String?      @unique\n  refreshToken           String?      @db.Text\n  resetPasswordToken     String?\n  resetPasswordExpires   DateTime?\n  isVerified             Boolean      @default(false)\n  verificationOTP        String?\n  verificationOTPExpires DateTime?\n  accountType            AccountType  @default(buyer)\n  isPremium              Boolean      @default(false)\n  premiumPlan            PremiumPlan?\n  premiumUntil           DateTime?\n  createdAt              DateTime     @default(now()) @map(\"created_at\")\n  updatedAt              DateTime     @updatedAt @map(\"updated_at\")\n\n  // Embedded addresses\n  addresses Address[]\n\n  // Relations\n  shop              Shop?\n  cart              Cart?\n  wishlist          Wishlist?\n  orders            Order[]\n  activities        Activity[]\n  comments          Comment[]\n  ratings           Rating[]\n  mpesaTransactions MpesaTransaction[]\n  followedShops     Shop[]             @relation(\"ShopFollowers\")\n\n  @@index([email])\n  @@index([googleId])\n  @@index([githubId])\n  @@index([isPremium])\n  @@map(\"users\")\n}\n\nmodel Address {\n  id        String      @id @default(cuid())\n  userId    String      @map(\"user_id\")\n  name      String\n  type      AddressType @default(home)\n  phone     String\n  city      String\n  street    String\n  isDefault Boolean     @default(false) @map(\"is_default\")\n  createdAt DateTime    @default(now()) @map(\"created_at\")\n  updatedAt DateTime    @updatedAt @map(\"updated_at\")\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@index([isDefault])\n  @@map(\"addresses\")\n}\n\n// ============================================\n// SHOP\n// ============================================\n\nmodel Shop {\n  id             String   @id @default(cuid())\n  ownerId        String   @unique @map(\"owner_id\")\n  name           String\n  username       String?  @unique\n  description    String   @db.Text\n  category       String\n  address        String\n  phone          String\n  email          String\n  avatar         String?\n  banner         String?\n  isVerified     Boolean  @default(false) @map(\"is_verified\")\n  rating         Float    @default(0)\n  reviewsCount   Int      @default(0) @map(\"reviews_count\")\n  followersCount Int      @default(0) @map(\"followers_count\")\n  createdAt      DateTime @default(now()) @map(\"created_at\")\n  updatedAt      DateTime @updatedAt @map(\"updated_at\")\n\n  // Relations\n  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)\n  products  Product[]\n  ratings   Rating[]\n  followers User[]    @relation(\"ShopFollowers\")\n\n  @@index([ownerId])\n  @@index([username])\n  @@index([category])\n  @@index([isVerified])\n  @@map(\"shops\")\n}\n\n// ============================================\n// PRODUCT\n// ============================================\n\nmodel Product {\n  id            String   @id @default(cuid())\n  shopId        String   @map(\"shop_id\")\n  name          String\n  description   String   @db.Text\n  content       String?  @db.Text\n  price         Float\n  category      String\n  stock         Int      @default(1)\n  image         String?\n  images        String[] @default([])\n  rating        Float    @default(0)\n  reviewsCount  Int      @default(0) @map(\"reviews_count\")\n  likesCount    Int      @default(0) @map(\"likes_count\")\n  repostsCount  Int      @default(0) @map(\"reposts_count\")\n  commentsCount Int      @default(0) @map(\"comments_count\")\n  sizes         String[] @default([])\n  colors        String[] @default([])\n  createdAt     DateTime @default(now()) @map(\"created_at\")\n  updatedAt     DateTime @updatedAt @map(\"updated_at\")\n\n  // Relations\n  shop         Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)\n  cartItems    CartItem[]\n  wishlistedBy Wishlist[]\n  comments     Comment[]\n  ratings      Rating[]\n  activities   Activity[]\n  orderItems   OrderItem[]\n\n  @@index([shopId])\n  @@index([category])\n  @@index([price])\n  @@index([createdAt(sort: Desc)])\n  @@map(\"products\")\n}\n\n// ============================================\n// CART & WISHLIST\n// ============================================\n\nmodel Cart {\n  id        String   @id @default(cuid())\n  userId    String   @unique @map(\"user_id\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)\n  items CartItem[]\n\n  @@index([userId])\n  @@map(\"carts\")\n}\n\nmodel CartItem {\n  id        String   @id @default(cuid())\n  cartId    String   @map(\"cart_id\")\n  productId String   @map(\"product_id\")\n  quantity  Int      @default(1)\n  size      String?\n  color     String?\n  image     String?\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)\n  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)\n\n  @@index([cartId])\n  @@index([productId])\n  @@map(\"cart_items\")\n}\n\nmodel Wishlist {\n  id        String   @id @default(cuid())\n  userId    String   @unique @map(\"user_id\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n  products Product[]\n\n  @@index([userId])\n  @@map(\"wishlists\")\n}\n\n// ============================================\n// ORDER\n// ============================================\n\nmodel Order {\n  id            String        @id @default(cuid())\n  userId        String        @map(\"user_id\")\n  subtotal      Float         @default(0)\n  totalAmount   Float         @map(\"total_amount\")\n  shippingFee   Float         @default(0) @map(\"shipping_fee\")\n  status        OrderStatus   @default(pending)\n  paymentStatus PaymentStatus @default(pending) @map(\"payment_status\")\n  paymentMethod String        @default(\"Cash on Delivery\") @map(\"payment_method\")\n\n  // Shipping address (embedded)\n  shippingName   String @map(\"shipping_name\")\n  shippingPhone  String @map(\"shipping_phone\")\n  shippingCity   String @map(\"shipping_city\")\n  shippingStreet String @map(\"shipping_street\")\n\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  // Relations\n  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)\n  items OrderItem[]\n\n  @@index([userId])\n  @@index([status])\n  @@index([createdAt(sort: Desc)])\n  @@map(\"orders\")\n}\n\nmodel OrderItem {\n  id        String   @id @default(cuid())\n  orderId   String   @map(\"order_id\")\n  productId String   @map(\"product_id\")\n  shopId    String   @map(\"shop_id\")\n  name      String\n  price     Float\n  quantity  Int\n  image     String?\n  size      String?\n  color     String?\n  createdAt DateTime @default(now()) @map(\"created_at\")\n\n  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)\n  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)\n\n  @@index([orderId])\n  @@index([productId])\n  @@index([shopId])\n  @@map(\"order_items\")\n}\n\n// ============================================\n// COMMENTS & RATINGS\n// ============================================\n\nmodel Comment {\n  id        String   @id @default(cuid())\n  productId String   @map(\"product_id\")\n  userId    String   @map(\"user_id\")\n  content   String   @db.Text\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)\n  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([productId])\n  @@index([userId])\n  @@index([createdAt(sort: Desc)])\n  @@map(\"comments\")\n}\n\nmodel Rating {\n  id        String   @id @default(cuid())\n  productId String?  @map(\"product_id\")\n  shopId    String?  @map(\"shop_id\")\n  userId    String   @map(\"user_id\")\n  rating    Int // 1-5\n  comment   String?  @db.Text\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)\n  shop    Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)\n  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([productId, userId], name: \"unique_product_user_rating\")\n  @@unique([shopId, userId], name: \"unique_shop_user_rating\")\n  @@index([productId])\n  @@index([shopId])\n  @@index([userId])\n  @@map(\"ratings\")\n}\n\n// ============================================\n// ACTIVITY TRACKING\n// ============================================\n\nmodel Activity {\n  id          String       @id @default(cuid())\n  userId      String       @map(\"user_id\")\n  type        ActivityType\n  productId   String?      @map(\"product_id\")\n  category    String?\n  searchQuery String?      @map(\"search_query\")\n  weight      Int          @default(1)\n  createdAt   DateTime     @default(now()) @map(\"created_at\")\n\n  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@index([productId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"activities\")\n}\n\n// ============================================\n// PAYMENT (M-PESA)\n// ============================================\n\nmodel MpesaTransaction {\n  id                 String            @id @default(cuid())\n  merchantRequestId  String            @map(\"merchant_request_id\")\n  checkoutRequestId  String            @unique @map(\"checkout_request_id\")\n  resultCode         Int?              @map(\"result_code\")\n  resultDesc         String?           @map(\"result_desc\")\n  amount             Float?\n  mpesaReceiptNumber String?           @map(\"mpesa_receipt_number\")\n  transactionDate    DateTime?         @map(\"transaction_date\")\n  phoneNumber        String            @map(\"phone_number\")\n  status             TransactionStatus @default(pending)\n  userId             String?           @map(\"user_id\")\n  metadata           Json? // Store plan info, etc.\n  createdAt          DateTime          @default(now()) @map(\"created_at\")\n  updatedAt          DateTime          @updatedAt @map(\"updated_at\")\n\n  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)\n\n  @@index([checkoutRequestId])\n  @@index([userId])\n  @@index([status])\n  @@map(\"mpesa_transactions\")\n}\n\n// ============================================\n// CONTACT FORM\n// ============================================\n\nmodel Contact {\n  id        String   @id @default(cuid())\n  name      String\n  email     String\n  subject   String\n  message   String   @db.Text\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n\n  @@index([email])\n  @@index([createdAt(sort: Desc)])\n  @@map(\"contacts\")\n}\n",
+  "inlineSchemaHash": "8b53b59e529ae4621d44cc5d30145e670bd85940b309f76c5e745744d94b639d",
   "copyEngine": true
 }
 config.dirname = '/'
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"Contact\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"subject\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"message\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"}],\"dbName\":\"contacts\"}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"googleId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"githubId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"refreshToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"resetPasswordToken\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"resetPasswordExpires\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"isVerified\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"verificationOTP\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"verificationOTPExpires\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"accountType\",\"kind\":\"enum\",\"type\":\"AccountType\"},{\"name\":\"isPremium\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"premiumPlan\",\"kind\":\"enum\",\"type\":\"PremiumPlan\"},{\"name\":\"premiumUntil\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"addresses\",\"kind\":\"object\",\"type\":\"Address\",\"relationName\":\"AddressToUser\"},{\"name\":\"shop\",\"kind\":\"object\",\"type\":\"Shop\",\"relationName\":\"ShopToUser\"},{\"name\":\"cart\",\"kind\":\"object\",\"type\":\"Cart\",\"relationName\":\"CartToUser\"},{\"name\":\"wishlist\",\"kind\":\"object\",\"type\":\"Wishlist\",\"relationName\":\"UserToWishlist\"},{\"name\":\"orders\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToUser\"},{\"name\":\"activities\",\"kind\":\"object\",\"type\":\"Activity\",\"relationName\":\"ActivityToUser\"},{\"name\":\"comments\",\"kind\":\"object\",\"type\":\"Comment\",\"relationName\":\"CommentToUser\"},{\"name\":\"ratings\",\"kind\":\"object\",\"type\":\"Rating\",\"relationName\":\"RatingToUser\"},{\"name\":\"mpesaTransactions\",\"kind\":\"object\",\"type\":\"MpesaTransaction\",\"relationName\":\"MpesaTransactionToUser\"},{\"name\":\"followedShops\",\"kind\":\"object\",\"type\":\"Shop\",\"relationName\":\"ShopFollowers\"}],\"dbName\":\"users\"},\"Address\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"AddressType\"},{\"name\":\"phone\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"city\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"street\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isDefault\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"is_default\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"AddressToUser\"}],\"dbName\":\"addresses\"},\"Shop\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"ownerId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"owner_id\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"username\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"category\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"address\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"phone\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"avatar\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"banner\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isVerified\",\"kind\":\"scalar\",\"type\":\"Boolean\",\"dbName\":\"is_verified\"},{\"name\":\"rating\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"reviewsCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"reviews_count\"},{\"name\":\"followersCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"followers_count\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"owner\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"ShopToUser\"},{\"name\":\"products\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ProductToShop\"},{\"name\":\"ratings\",\"kind\":\"object\",\"type\":\"Rating\",\"relationName\":\"RatingToShop\"},{\"name\":\"followers\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"ShopFollowers\"}],\"dbName\":\"shops\"},\"Product\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"shopId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shop_id\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"content\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"price\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"category\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"stock\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"image\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"images\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"rating\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"reviewsCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"reviews_count\"},{\"name\":\"likesCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"likes_count\"},{\"name\":\"repostsCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"reposts_count\"},{\"name\":\"commentsCount\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"comments_count\"},{\"name\":\"sizes\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"colors\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"shop\",\"kind\":\"object\",\"type\":\"Shop\",\"relationName\":\"ProductToShop\"},{\"name\":\"cartItems\",\"kind\":\"object\",\"type\":\"CartItem\",\"relationName\":\"CartItemToProduct\"},{\"name\":\"wishlistedBy\",\"kind\":\"object\",\"type\":\"Wishlist\",\"relationName\":\"ProductToWishlist\"},{\"name\":\"comments\",\"kind\":\"object\",\"type\":\"Comment\",\"relationName\":\"CommentToProduct\"},{\"name\":\"ratings\",\"kind\":\"object\",\"type\":\"Rating\",\"relationName\":\"ProductToRating\"},{\"name\":\"activities\",\"kind\":\"object\",\"type\":\"Activity\",\"relationName\":\"ActivityToProduct\"},{\"name\":\"orderItems\",\"kind\":\"object\",\"type\":\"OrderItem\",\"relationName\":\"OrderItemToProduct\"}],\"dbName\":\"products\"},\"Cart\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"CartToUser\"},{\"name\":\"items\",\"kind\":\"object\",\"type\":\"CartItem\",\"relationName\":\"CartToCartItem\"}],\"dbName\":\"carts\"},\"CartItem\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"cartId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"cart_id\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"product_id\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"size\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"color\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"image\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"cart\",\"kind\":\"object\",\"type\":\"Cart\",\"relationName\":\"CartToCartItem\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"CartItemToProduct\"}],\"dbName\":\"cart_items\"},\"Wishlist\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"UserToWishlist\"},{\"name\":\"products\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ProductToWishlist\"}],\"dbName\":\"wishlists\"},\"Order\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"subtotal\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"totalAmount\",\"kind\":\"scalar\",\"type\":\"Float\",\"dbName\":\"total_amount\"},{\"name\":\"shippingFee\",\"kind\":\"scalar\",\"type\":\"Float\",\"dbName\":\"shipping_fee\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"OrderStatus\"},{\"name\":\"paymentStatus\",\"kind\":\"enum\",\"type\":\"PaymentStatus\",\"dbName\":\"payment_status\"},{\"name\":\"paymentMethod\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"payment_method\"},{\"name\":\"shippingName\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shipping_name\"},{\"name\":\"shippingPhone\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shipping_phone\"},{\"name\":\"shippingCity\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shipping_city\"},{\"name\":\"shippingStreet\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shipping_street\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"OrderToUser\"},{\"name\":\"items\",\"kind\":\"object\",\"type\":\"OrderItem\",\"relationName\":\"OrderToOrderItem\"}],\"dbName\":\"orders\"},\"OrderItem\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"orderId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"order_id\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"product_id\"},{\"name\":\"shopId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shop_id\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"price\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"image\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"size\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"color\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"order\",\"kind\":\"object\",\"type\":\"Order\",\"relationName\":\"OrderToOrderItem\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"OrderItemToProduct\"}],\"dbName\":\"order_items\"},\"Comment\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"product_id\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"content\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"CommentToProduct\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"CommentToUser\"}],\"dbName\":\"comments\"},\"Rating\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"product_id\"},{\"name\":\"shopId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"shop_id\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"rating\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"comment\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ProductToRating\"},{\"name\":\"shop\",\"kind\":\"object\",\"type\":\"Shop\",\"relationName\":\"RatingToShop\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"RatingToUser\"}],\"dbName\":\"ratings\"},\"Activity\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"type\",\"kind\":\"enum\",\"type\":\"ActivityType\"},{\"name\":\"productId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"product_id\"},{\"name\":\"category\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"searchQuery\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"search_query\"},{\"name\":\"weight\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"ActivityToUser\"},{\"name\":\"product\",\"kind\":\"object\",\"type\":\"Product\",\"relationName\":\"ActivityToProduct\"}],\"dbName\":\"activities\"},\"MpesaTransaction\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"merchantRequestId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"merchant_request_id\"},{\"name\":\"checkoutRequestId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"checkout_request_id\"},{\"name\":\"resultCode\",\"kind\":\"scalar\",\"type\":\"Int\",\"dbName\":\"result_code\"},{\"name\":\"resultDesc\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"result_desc\"},{\"name\":\"amount\",\"kind\":\"scalar\",\"type\":\"Float\"},{\"name\":\"mpesaReceiptNumber\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"mpesa_receipt_number\"},{\"name\":\"transactionDate\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"transaction_date\"},{\"name\":\"phoneNumber\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"phone_number\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"TransactionStatus\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\",\"dbName\":\"user_id\"},{\"name\":\"metadata\",\"kind\":\"scalar\",\"type\":\"Json\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"MpesaTransactionToUser\"}],\"dbName\":\"mpesa_transactions\"},\"Contact\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"subject\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"message\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"created_at\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\",\"dbName\":\"updated_at\"}],\"dbName\":\"contacts\"}},\"enums\":{},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.engineWasm = {
   getRuntime: async () => require('./query_engine_bg.js'),
