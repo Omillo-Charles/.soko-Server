@@ -22315,7 +22315,7 @@ export namespace Prisma {
   }
 
   export type ContactCreateInput = {
-    id?: string
+    id: string
     name: string
     email: string
     subject: string
@@ -22325,7 +22325,7 @@ export namespace Prisma {
   }
 
   export type ContactUncheckedCreateInput = {
-    id?: string
+    id: string
     name: string
     email: string
     subject: string
@@ -22355,7 +22355,7 @@ export namespace Prisma {
   }
 
   export type ContactCreateManyInput = {
-    id?: string
+    id: string
     name: string
     email: string
     subject: string

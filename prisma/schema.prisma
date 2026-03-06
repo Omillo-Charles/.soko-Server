@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -10,10 +7,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ============================================
-// ENUMS
-// ============================================
 
 enum AccountType {
   buyer
@@ -61,43 +54,36 @@ enum ActivityType {
   search
 }
 
-// ============================================
-// USER & AUTHENTICATION
-// ============================================
-
 model User {
-  id                      String    @id @default(cuid())
-  name                    String
-  email                   String    @unique
-  password                String?   // Optional for OAuth users
-  googleId                String?   @unique
-  githubId                String?   @unique
-  refreshToken            String?   @db.Text
-  resetPasswordToken      String?
-  resetPasswordExpires    DateTime?
-  isVerified              Boolean   @default(false)
-  verificationOTP         String?
-  verificationOTPExpires  DateTime?
-  accountType             AccountType @default(buyer)
-  isPremium               Boolean   @default(false)
-  premiumPlan             PremiumPlan?
-  premiumUntil            DateTime?
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
+  id                     String       @id @default(cuid())
+  name                   String
+  email                  String       @unique
+  password               String?
+  googleId               String?      @unique
+  githubId               String?      @unique
+  refreshToken           String?
+  resetPasswordToken     String?
+  resetPasswordExpires   DateTime?
+  isVerified             Boolean      @default(false)
+  verificationOTP        String?
+  verificationOTPExpires DateTime?
+  accountType            AccountType  @default(buyer)
+  isPremium              Boolean      @default(false)
+  premiumPlan            PremiumPlan?
+  premiumUntil           DateTime?
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  // Embedded addresses
-  addresses               Address[]
-
-  // Relations
-  shop                    Shop?
-  cart                    Cart?
-  wishlist                Wishlist?
-  orders                  Order[]
-  activities              Activity[]
-  comments                Comment[]
-  ratings                 Rating[]
-  mpesaTransactions       MpesaTransaction[]
-  followedShops           Shop[]    @relation("ShopFollowers")
+  addresses              Address[]
+  shop                   Shop?
+  cart                   Cart?
+  wishlist               Wishlist?
+  orders                 Order[]
+  activities             Activity[]
+  comments               Comment[]
+  ratings                Rating[]
+  mpesaTransactions      MpesaTransaction[]
+  followedShops          Shop[]       @relation("ShopFollowers")
 
   @@map("users")
   @@index([email])
@@ -125,34 +111,29 @@ model Address {
   @@index([isDefault])
 }
 
-// ============================================
-// SHOP
-// ============================================
-
 model Shop {
-  id              String    @id @default(cuid())
-  ownerId         String    @unique @map("owner_id")
-  name            String
-  username        String?   @unique
-  description     String    @db.Text
-  category        String
-  address         String
-  phone           String
-  email           String
-  avatar          String?
-  banner          String?
-  isVerified      Boolean   @default(false) @map("is_verified")
-  rating          Float     @default(0)
-  reviewsCount    Int       @default(0) @map("reviews_count")
-  followersCount  Int       @default(0) @map("followers_count")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  ownerId        String   @unique @map("owner_id")
+  name           String
+  username       String?  @unique
+  description    String
+  category       String
+  address        String
+  phone          String
+  email          String
+  avatar         String?
+  banner         String?
+  isVerified     Boolean  @default(false) @map("is_verified")
+  rating         Float    @default(0)
+  reviewsCount   Int      @default(0) @map("reviews_count")
+  followersCount Int      @default(0) @map("followers_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  // Relations
-  owner           User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  products        Product[]
-  ratings         Rating[]
-  followers       User[]    @relation("ShopFollowers")
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  products       Product[]
+  ratings        Rating[]
+  followers      User[]   @relation("ShopFollowers")
 
   @@map("shops")
   @@index([ownerId])
@@ -161,40 +142,34 @@ model Shop {
   @@index([isVerified])
 }
 
-
-// ============================================
-// PRODUCT
-// ============================================
-
 model Product {
-  id              String    @id @default(cuid())
-  shopId          String    @map("shop_id")
-  name            String
-  description     String    @db.Text
-  content         String?   @db.Text
-  price           Float
-  category        String
-  stock           Int       @default(1)
-  image           String?
-  images          String[]  @default([])
-  rating          Float     @default(0)
-  reviewsCount    Int       @default(0) @map("reviews_count")
-  likesCount      Int       @default(0) @map("likes_count")
-  repostsCount    Int       @default(0) @map("reposts_count")
-  commentsCount   Int       @default(0) @map("comments_count")
-  sizes           String[]  @default([])
-  colors          String[]  @default([])
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id            String    @id @default(cuid())
+  shopId        String    @map("shop_id")
+  name          String
+  description   String
+  content       String?
+  price         Float
+  category      String
+  stock         Int       @default(1)
+  image         String?
+  images        String[]  @default([])
+  rating        Float     @default(0)
+  reviewsCount  Int       @default(0) @map("reviews_count")
+  likesCount    Int       @default(0) @map("likes_count")
+  repostsCount  Int       @default(0) @map("reposts_count")
+  commentsCount Int       @default(0) @map("comments_count")
+  sizes         String[]  @default([])
+  colors        String[]  @default([])
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  // Relations
-  shop            Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  cartItems       CartItem[]
-  wishlistedBy    Wishlist[]
-  comments        Comment[]
-  ratings         Rating[]
-  activities      Activity[]
-  orderItems      OrderItem[]
+  shop          Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  cartItems     CartItem[]
+  wishlistedBy  Wishlist[]
+  comments      Comment[]
+  ratings       Rating[]
+  activities    Activity[]
+  orderItems    OrderItem[]
 
   @@map("products")
   @@index([shopId])
@@ -203,17 +178,13 @@ model Product {
   @@index([createdAt(sort: Desc)])
 }
 
-// ============================================
-// CART & WISHLIST
-// ============================================
-
 model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique @map("user_id")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
 
   @@map("carts")
@@ -252,32 +223,24 @@ model Wishlist {
   @@index([userId])
 }
 
-// ============================================
-// ORDER
-// ============================================
-
 model Order {
-  id              String        @id @default(cuid())
-  userId          String        @map("user_id")
-  subtotal        Float         @default(0)
-  totalAmount     Float         @map("total_amount")
-  shippingFee     Float         @default(0) @map("shipping_fee")
-  status          OrderStatus   @default(pending)
-  paymentStatus   PaymentStatus @default(pending) @map("payment_status")
-  paymentMethod   String        @default("Cash on Delivery") @map("payment_method")
-  
-  // Shipping address (embedded)
-  shippingName    String        @map("shipping_name")
-  shippingPhone   String        @map("shipping_phone")
-  shippingCity    String        @map("shipping_city")
-  shippingStreet  String        @map("shipping_street")
-  
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id            String        @id @default(cuid())
+  userId        String        @map("user_id")
+  subtotal      Float         @default(0)
+  totalAmount   Float         @map("total_amount")
+  shippingFee   Float         @default(0) @map("shipping_fee")
+  status        OrderStatus   @default(pending)
+  paymentStatus PaymentStatus @default(pending) @map("payment_status")
+  paymentMethod String        @default("Cash on Delivery") @map("payment_method")
+  shippingName  String        @map("shipping_name")
+  shippingPhone String        @map("shipping_phone")
+  shippingCity  String        @map("shipping_city")
+  shippingStreet String       @map("shipping_street")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  // Relations
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items           OrderItem[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
 
   @@map("orders")
   @@index([userId])
@@ -307,16 +270,11 @@ model OrderItem {
   @@index([shopId])
 }
 
-
-// ============================================
-// COMMENTS & RATINGS
-// ============================================
-
 model Comment {
   id        String   @id @default(cuid())
   productId String   @map("product_id")
   userId    String   @map("user_id")
-  content   String   @db.Text
+  content   String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -330,12 +288,12 @@ model Comment {
 }
 
 model Rating {
-  id        String   @id @default(cuid())
-  productId String?  @map("product_id")
-  shopId    String?  @map("shop_id")
-  userId    String   @map("user_id")
-  rating    Int      // 1-5
-  comment   String?  @db.Text
+  id        String  @id @default(cuid())
+  productId String? @map("product_id")
+  shopId    String? @map("shop_id")
+  userId    String  @map("user_id")
+  rating    Int
+  comment   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -350,10 +308,6 @@ model Rating {
   @@index([shopId])
   @@index([userId])
 }
-
-// ============================================
-// ACTIVITY TRACKING
-// ============================================
 
 model Activity {
   id          String       @id @default(cuid())
@@ -375,48 +329,36 @@ model Activity {
   @@index([createdAt])
 }
 
-// ============================================
-// PAYMENT (M-PESA)
-// ============================================
-
 model MpesaTransaction {
-  id                  String            @id @default(cuid())
-  merchantRequestId   String            @map("merchant_request_id")
-  checkoutRequestId   String            @unique @map("checkout_request_id")
-  resultCode          Int?              @map("result_code")
-  resultDesc          String?           @map("result_desc")
-  amount              Float?
-  mpesaReceiptNumber  String?           @map("mpesa_receipt_number")
-  transactionDate     DateTime?         @map("transaction_date")
-  phoneNumber         String            @map("phone_number")
-  status              TransactionStatus @default(pending)
-  userId              String?           @map("user_id")
-  metadata            Json?             // Store plan info, etc.
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
+  id                 String            @id @default(cuid())
+  merchantRequestId  String            @map("merchant_request_id")
+  checkoutRequestId  String            @unique @map("checkout_request_id")
+  resultCode         Int?
+  resultDesc         String?
+  amount             Float?
+  mpesaReceiptNumber String?           @map("mpesa_receipt_number")
+  transactionDate    DateTime?         @map("transaction_date")
+  phoneNumber        String            @map("phone_number")
+  status             TransactionStatus @default(pending)
+  userId             String?           @map("user_id")
+  metadata           Json?
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
 
-  user                User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("mpesa_transactions")
-  @@index([checkoutRequestId])
-  @@index([userId])
-  @@index([status])
 }
 
-// ============================================
-// CONTACT FORM
-// ============================================
-
 model Contact {
-  id        String   @id @default(cuid())
+  id        String   @id
   name      String
   email     String
   subject   String
-  message   String   @db.Text
+  message   String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("contacts")
-  @@index([email])
   @@index([createdAt(sort: Desc)])
 }

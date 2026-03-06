@@ -1,16 +1,14 @@
 import { Router } from "express";
-import User from "../models/user.model.js";
-import Shop from "../models/shop.model.js";
-import Product from "../models/product.model.js";
+import prisma from "../database/postgresql.js";
 
 const statsRouter = Router();
 
 statsRouter.get("/", async (req, res, next) => {
     try {
         const [usersCount, shopsCount, productsCount] = await Promise.all([
-            User.countDocuments(),
-            Shop.countDocuments(),
-            Product.countDocuments()
+            prisma.user.count(),
+            prisma.shop.count(),
+            prisma.product.count()
         ]);
 
         res.status(200).json({

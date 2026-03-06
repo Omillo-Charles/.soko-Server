@@ -1,8 +1,7 @@
-import { userConnection } from "../database/mongodb.js";
+import prisma from "../database/postgresql.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import User from "../models/user.model.js";
 import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
 import { sendEmail } from "../config/nodemailer.js";
 import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate, getVerificationEmailTemplate } from "../utils/emailTemplates.js";
@@ -14,13 +13,10 @@ const generateTokens = (userId) => {
 };
 
 export const signUp = async (req, res, next) => {
-    const session = await userConnection.startSession();
-    session.startTransaction();
-
     try {
         const {name, email, password} = req.body;
 
-        const existingUser = await User.findOne({email});
+        const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
             const error = new Error("User already exists");
             error.statusCode = 400;
@@ -29,27 +25,24 @@ export const signUp = async (req, res, next) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+        const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
 
-        const { accessToken, refreshToken } = generateTokens('temp-id'); // We'll update this after creation
+        const created = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                verificationOTP: otp,
+                verificationOTPExpires: otpExpires
+            }
+        });
 
-        const newUsers = await User.create([{ 
-            name, 
-            email, 
-            password: hashedPassword, 
-            refreshToken,
-            verificationOTP: otp,
-            verificationOTPExpires: otpExpires
-        }], { session });
-
-        const tokens = generateTokens(newUsers[0]._id);
-        newUsers[0].refreshToken = tokens.refreshToken;
-        await newUsers[0].save({ session });
-
-        await session.commitTransaction();
-        session.endSession();
+        const tokens = generateTokens(created.id);
+        await prisma.user.update({
+            where: { id: created.id },
+            data: { refreshToken: tokens.refreshToken }
+        });
 
         // Send Verification Email
         try {
@@ -61,13 +54,10 @@ export const signUp = async (req, res, next) => {
                 html: template.html
             });
         } catch (emailError) {
-            console.error('Failed to send verification email:', emailError);
+            
         }
 
-        newUsers[0].password = undefined;
-        newUsers[0].refreshToken = undefined;
-        newUsers[0].verificationOTP = undefined;
-        newUsers[0].verificationOTPExpires = undefined;
+        const { password: _p, refreshToken: _r, verificationOTP: _o, verificationOTPExpires: _e, ...safeUser } = created;
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -80,14 +70,12 @@ export const signUp = async (req, res, next) => {
             success: true,
             message: "User signed up successfully!",
             data: {
-                user: newUsers[0],
+                user: safeUser,
                 accessToken: tokens.accessToken
             }
         });
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
         next(error);
     }
 }
@@ -96,9 +84,10 @@ export const changePassword = async (req, res, next) => {
     try {
         const { currentPassword, newPassword } = req.body;
 
-        const user = await User.findById(req.user._id).select('+password');
+        const userId = req.user?.id || req.user?._id?.toString();
+        const user = await prisma.user.findUnique({ where: { id: userId } });
         
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        const isMatch = user && user.password ? await bcrypt.compare(currentPassword, user.password) : false;
         if (!isMatch) {
             const error = new Error('Current password is incorrect');
             error.statusCode = 401;
@@ -106,8 +95,10 @@ export const changePassword = async (req, res, next) => {
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        user.password = hashedPassword;
-        await user.save();
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
 
         res.status(200).json({
             success: true,
@@ -122,14 +113,14 @@ export const signIn = async (req, res, next) => {
     try {
         const {email, password} = req.body;
 
-        const existingUser = await User.findOne({email}).select('+password');
+        const existingUser = await prisma.user.findUnique({ where: { email } });
         if (!existingUser) {
             const error = new Error("User does not exist");
             error.statusCode = 404;
             throw error;
         }
 
-        const isMatch = await bcrypt.compare(password, existingUser.password);
+        const isMatch = existingUser.password ? await bcrypt.compare(password, existingUser.password) : false;
         if (!isMatch) {
             const error = new Error("Incorrect password");
             error.statusCode = 400;
@@ -142,12 +133,13 @@ export const signIn = async (req, res, next) => {
             throw error;
         }
 
-        const tokens = generateTokens(existingUser._id);
-        existingUser.refreshToken = tokens.refreshToken;
-        await existingUser.save();
+        const tokens = generateTokens(existingUser.id);
+        await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { refreshToken: tokens.refreshToken }
+        });
 
-        existingUser.password = undefined;
-        existingUser.refreshToken = undefined;
+        const { password: _p, refreshToken: _r, ...safeUser } = existingUser;
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -160,7 +152,7 @@ export const signIn = async (req, res, next) => {
             success: true,
             message: "User signed in successfully!",
             data: {
-                user: existingUser,
+                user: safeUser,
                 accessToken: tokens.accessToken
             }
         });
@@ -200,7 +192,7 @@ export const refresh = async (req, res, next) => {
 
         const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
 
-        const user = await User.findById(decoded.userId).select('+refreshToken');
+        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
         if (!user || user.refreshToken !== refreshToken) {
             const error = new Error('Invalid refresh token');
@@ -208,9 +200,11 @@ export const refresh = async (req, res, next) => {
             throw error;
         }
 
-        const tokens = generateTokens(user._id);
-        user.refreshToken = tokens.refreshToken;
-        await user.save();
+        const tokens = generateTokens(user.id);
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { refreshToken: tokens.refreshToken }
+        });
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -230,9 +224,26 @@ export const refresh = async (req, res, next) => {
 
 export const googleAuthSuccess = async (req, res, next) => {
     try {
-        const tokens = generateTokens(req.user._id);
-        req.user.refreshToken = tokens.refreshToken;
-        await req.user.save();
+        const email = req.user.email;
+        let user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    name: req.user.name,
+                    email: req.user.email,
+                    googleId: req.user.googleId || req.user.id,
+                    isVerified: true
+                }
+            });
+        } else {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { googleId: req.user.googleId || req.user.id, isVerified: true }
+            });
+            user = await prisma.user.findUnique({ where: { id: user.id } });
+        }
+        const tokens = generateTokens(user.id);
+        await prisma.user.update({ where: { id: user.id }, data: { refreshToken: tokens.refreshToken } });
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -241,12 +252,11 @@ export const googleAuthSuccess = async (req, res, next) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        // Redirect to frontend with access token and user data
         const userData = JSON.stringify({
-            _id: req.user._id,
-            name: req.user.name,
-            email: req.user.email,
-            isVerified: req.user.isVerified
+            _id: user.id,
+            name: user.name,
+            email: user.email,
+            isVerified: user.isVerified
         });
         res.redirect(`${FRONTEND_URL}/auth?mode=social-success&token=${tokens.accessToken}&user=${encodeURIComponent(userData)}`);
     } catch (error) {
@@ -257,7 +267,7 @@ export const googleAuthSuccess = async (req, res, next) => {
 export const forgotPassword = async (req, res, next) => {
     try {
         const { email } = req.body;
-        const user = await User.findOne({ email });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
             const error = new Error("User with this email does not exist");
@@ -265,13 +275,16 @@ export const forgotPassword = async (req, res, next) => {
             throw error;
         }
 
-        // Generate reset token
         const resetToken = crypto.randomBytes(32).toString("hex");
         const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
-        user.resetPasswordToken = hashedToken;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpires: new Date(Date.now() + 3600000)
+            }
+        });
 
         const resetUrl = `${FRONTEND_URL}/reset-password/${resetToken}`;
         const template = getForgotPasswordEmailTemplate(user.name, resetUrl);
@@ -289,9 +302,13 @@ export const forgotPassword = async (req, res, next) => {
                 message: "Password reset link sent to your email"
             });
         } catch (emailError) {
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpires = undefined;
-            await user.save();
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    resetPasswordToken: null,
+                    resetPasswordExpires: null
+                }
+            });
             
             const error = new Error("Email could not be sent");
             error.statusCode = 500;
@@ -309,10 +326,12 @@ export const resetPassword = async (req, res, next) => {
 
         const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-        const user = await User.findOne({
-            resetPasswordToken: hashedToken,
-            resetPasswordExpires: { $gt: Date.now() }
-        }).select('+resetPasswordToken +resetPasswordExpires');
+        const user = await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: hashedToken,
+                resetPasswordExpires: { gt: new Date() }
+            }
+        });
 
         if (!user) {
             const error = new Error("Invalid or expired reset token");
@@ -320,12 +339,15 @@ export const resetPassword = async (req, res, next) => {
             throw error;
         }
 
-        // Update password
         const hashedPassword = await bcrypt.hash(password, 10);
-        user.password = hashedPassword;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashedPassword,
+                resetPasswordToken: null,
+                resetPasswordExpires: null
+            }
+        });
 
         res.status(200).json({
             success: true,
@@ -340,11 +362,13 @@ export const verifyEmail = async (req, res, next) => {
     try {
         const { email, otp } = req.body;
 
-        const user = await User.findOne({ 
-            email,
-            verificationOTP: otp,
-            verificationOTPExpires: { $gt: Date.now() }
-        }).select('+verificationOTP +verificationOTPExpires');
+        const user = await prisma.user.findFirst({
+            where: {
+                email,
+                verificationOTP: otp,
+                verificationOTPExpires: { gt: new Date() }
+            }
+        });
 
         if (!user) {
             const error = new Error("Invalid or expired verification code");
@@ -352,10 +376,14 @@ export const verifyEmail = async (req, res, next) => {
             throw error;
         }
 
-        user.isVerified = true;
-        user.verificationOTP = undefined;
-        user.verificationOTPExpires = undefined;
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isVerified: true,
+                verificationOTP: null,
+                verificationOTPExpires: null
+            }
+        });
 
         // Send Welcome Email after successful verification
         try {
@@ -367,7 +395,7 @@ export const verifyEmail = async (req, res, next) => {
                 html: template.html
             });
         } catch (emailError) {
-            console.error('Failed to send welcome email:', emailError);
+            
         }
 
         res.status(200).json({
@@ -381,9 +409,26 @@ export const verifyEmail = async (req, res, next) => {
 
 export const githubAuthSuccess = async (req, res, next) => {
     try {
-        const tokens = generateTokens(req.user._id);
-        req.user.refreshToken = tokens.refreshToken;
-        await req.user.save();
+        const email = req.user.email || `${req.user.username}@github.com`;
+        let user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    name: req.user.name || req.user.username,
+                    email,
+                    githubId: req.user.githubId || req.user.id,
+                    isVerified: true
+                }
+            });
+        } else {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { githubId: req.user.githubId || req.user.id, isVerified: true }
+            });
+            user = await prisma.user.findUnique({ where: { id: user.id } });
+        }
+        const tokens = generateTokens(user.id);
+        await prisma.user.update({ where: { id: user.id }, data: { refreshToken: tokens.refreshToken } });
 
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
@@ -392,12 +437,11 @@ export const githubAuthSuccess = async (req, res, next) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        // Redirect to frontend with access token and user data
         const userData = JSON.stringify({
-            _id: req.user._id,
-            name: req.user.name,
-            email: req.user.email,
-            isVerified: req.user.isVerified
+            _id: user.id,
+            name: user.name,
+            email: user.email,
+            isVerified: user.isVerified
         });
         res.redirect(`${FRONTEND_URL}/auth?mode=social-success&token=${tokens.accessToken}&user=${encodeURIComponent(userData)}`);
     } catch (error) {

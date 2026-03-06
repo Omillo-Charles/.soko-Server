@@ -1,12 +1,17 @@
-import Wishlist from "../models/wishlist.model.js";
-import Product from "../models/product.model.js";
+import prisma from "../database/postgresql.js";
 
 export const getWishlist = async (req, res, next) => {
     try {
-        let wishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
-        
+        const userId = req.user?.id || req.user?._id?.toString();
+        let wishlist = await prisma.wishlist.findUnique({
+            where: { userId },
+            include: { products: true }
+        });
         if (!wishlist) {
-            wishlist = await Wishlist.create({ user: req.user._id, products: [] });
+            wishlist = await prisma.wishlist.create({
+                data: { userId },
+                include: { products: true }
+            });
         }
 
         res.status(200).json({
@@ -21,39 +26,28 @@ export const getWishlist = async (req, res, next) => {
 export const toggleWishlist = async (req, res, next) => {
     try {
         const { productId } = req.body;
-        
-        const product = await Product.findById(productId);
+        const userId = req.user?.id || req.user?._id?.toString();
+        const product = await prisma.product.findUnique({ where: { id: productId } });
         if (!product) {
             const error = new Error('Product not found');
             error.statusCode = 404;
             throw error;
         }
-
-        let wishlist = await Wishlist.findOne({ user: req.user._id });
-        
+        let wishlist = await prisma.wishlist.findUnique({ where: { userId }, include: { products: true } });
         if (!wishlist) {
-            wishlist = await Wishlist.create({ user: req.user._id, products: [] });
+            wishlist = await prisma.wishlist.create({ data: { userId }, include: { products: true } });
         }
-
-        const isIncluded = wishlist.products.some(id => id.toString() === productId.toString());
-
+        const isIncluded = wishlist.products.some(p => p.id === productId);
         if (isIncluded) {
-            // Remove if already exists - Use findOneAndUpdate with condition to prevent double decrementing
-            const updatedWishlistDoc = await Wishlist.findOneAndUpdate(
-                { user: req.user._id, products: productId },
-                { $pull: { products: productId } },
-                { new: true }
-            );
-
-            if (updatedWishlistDoc) {
-                // Only decrement if the product was actually removed
-                await Product.findByIdAndUpdate(productId, [
-                    { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
-                ], { updatePipeline: true });
-            }
-            
-            const finalWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
-            
+            await prisma.wishlist.update({
+                where: { id: wishlist.id },
+                data: { products: { disconnect: { id: productId } } }
+            });
+            await prisma.product.update({
+                where: { id: productId },
+                data: { likesCount: { decrement: 1 } }
+            });
+            const finalWishlist = await prisma.wishlist.findUnique({ where: { userId }, include: { products: true } });
             res.status(200).json({
                 success: true,
                 message: "Removed from wishlist",
@@ -61,20 +55,15 @@ export const toggleWishlist = async (req, res, next) => {
                 action: 'removed'
             });
         } else {
-            // Add if not exists - Use findOneAndUpdate with condition to prevent double incrementing
-            const updatedWishlistDoc = await Wishlist.findOneAndUpdate(
-                { user: req.user._id, products: { $ne: productId } },
-                { $addToSet: { products: productId } },
-                { new: true }
-            );
-
-            if (updatedWishlistDoc) {
-                // Only increment if the product was actually added
-                await Product.findByIdAndUpdate(productId, { $inc: { likesCount: 1 } });
-            }
-            
-            const finalWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
-            
+            await prisma.wishlist.update({
+                where: { id: wishlist.id },
+                data: { products: { connect: { id: productId } } }
+            });
+            await prisma.product.update({
+                where: { id: productId },
+                data: { likesCount: { increment: 1 } }
+            });
+            const finalWishlist = await prisma.wishlist.findUnique({ where: { userId }, include: { products: true } });
             res.status(200).json({
                 success: true,
                 message: "Added to wishlist",
@@ -90,30 +79,25 @@ export const toggleWishlist = async (req, res, next) => {
 export const removeFromWishlist = async (req, res, next) => {
     try {
         const { productId } = req.params;
-
-        const wishlist = await Wishlist.findOne({ user: req.user._id });
+        const userId = req.user?.id || req.user?._id?.toString();
+        const wishlist = await prisma.wishlist.findUnique({ where: { userId }, include: { products: true } });
         if (!wishlist) {
             const error = new Error('Wishlist not found');
             error.statusCode = 404;
             throw error;
         }
-
-        const productIdToRemove = productId.toString();
-        const isIncluded = wishlist.products.some(id => id.toString() === productIdToRemove);
-
+        const isIncluded = wishlist.products.some(p => p.id === productId);
         if (isIncluded) {
-            await Wishlist.updateOne(
-                { user: req.user._id },
-                { $pull: { products: productIdToRemove } }
-            );
-
-            // Decrement likesCount on product (ensure it doesn't go below 0)
-            await Product.findByIdAndUpdate(productIdToRemove, [
-                { $set: { likesCount: { $max: [0, { $subtract: ["$likesCount", 1] }] } } }
-            ], { updatePipeline: true });
+            await prisma.wishlist.update({
+                where: { id: wishlist.id },
+                data: { products: { disconnect: { id: productId } } }
+            });
+            await prisma.product.update({
+                where: { id: productId },
+                data: { likesCount: { decrement: 1 } }
+            });
         }
-
-        const updatedWishlist = await Wishlist.findOne({ user: req.user._id }).populate({ path: 'products', model: Product });
+        const updatedWishlist = await prisma.wishlist.findUnique({ where: { userId }, include: { products: true } });
 
         res.status(200).json({
             success: true,

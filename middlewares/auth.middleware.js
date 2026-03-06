@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/user.model.js';
+import prisma from '../database/postgresql.js';
 import { JWT_SECRET } from '../config/env.js';
 
 const authorize = async (req, res, next) => {
@@ -18,7 +18,7 @@ const authorize = async (req, res, next) => {
 
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        const user = await User.findById(decoded.userId);
+        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
         if (!user) {
             const error = new Error('Unauthorized');

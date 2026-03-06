@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -10,10 +7,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-// ============================================
-// ENUMS
-// ============================================
 
 enum AccountType {
   buyer
@@ -61,18 +54,14 @@ enum ActivityType {
   search
 }
 
-// ============================================
-// USER & AUTHENTICATION
-// ============================================
-
 model User {
   id                     String       @id @default(cuid())
   name                   String
   email                  String       @unique
-  password               String? // Optional for OAuth users
+  password               String?
   googleId               String?      @unique
   githubId               String?      @unique
-  refreshToken           String?      @db.Text
+  refreshToken           String?
   resetPasswordToken     String?
   resetPasswordExpires   DateTime?
   isVerified             Boolean      @default(false)
@@ -85,10 +74,7 @@ model User {
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  // Embedded addresses
-  addresses Address[]
-
-  // Relations
+  addresses         Address[]
   shop              Shop?
   cart              Cart?
   wishlist          Wishlist?
@@ -125,16 +111,12 @@ model Address {
   @@map("addresses")
 }
 
-// ============================================
-// SHOP
-// ============================================
-
 model Shop {
   id             String   @id @default(cuid())
   ownerId        String   @unique @map("owner_id")
   name           String
   username       String?  @unique
-  description    String   @db.Text
+  description    String
   category       String
   address        String
   phone          String
@@ -148,7 +130,6 @@ model Shop {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  // Relations
   owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   products  Product[]
   ratings   Rating[]
@@ -161,16 +142,12 @@ model Shop {
   @@map("shops")
 }
 
-// ============================================
-// PRODUCT
-// ============================================
-
 model Product {
   id            String   @id @default(cuid())
   shopId        String   @map("shop_id")
   name          String
-  description   String   @db.Text
-  content       String?  @db.Text
+  description   String
+  content       String?
   price         Float
   category      String
   stock         Int      @default(1)
@@ -186,7 +163,6 @@ model Product {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  // Relations
   shop         Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
   cartItems    CartItem[]
   wishlistedBy Wishlist[]
@@ -201,10 +177,6 @@ model Product {
   @@index([createdAt(sort: Desc)])
   @@map("products")
 }
-
-// ============================================
-// CART & WISHLIST
-// ============================================
 
 model Cart {
   id        String   @id @default(cuid())
@@ -251,30 +223,22 @@ model Wishlist {
   @@map("wishlists")
 }
 
-// ============================================
-// ORDER
-// ============================================
-
 model Order {
-  id            String        @id @default(cuid())
-  userId        String        @map("user_id")
-  subtotal      Float         @default(0)
-  totalAmount   Float         @map("total_amount")
-  shippingFee   Float         @default(0) @map("shipping_fee")
-  status        OrderStatus   @default(pending)
-  paymentStatus PaymentStatus @default(pending) @map("payment_status")
-  paymentMethod String        @default("Cash on Delivery") @map("payment_method")
+  id             String        @id @default(cuid())
+  userId         String        @map("user_id")
+  subtotal       Float         @default(0)
+  totalAmount    Float         @map("total_amount")
+  shippingFee    Float         @default(0) @map("shipping_fee")
+  status         OrderStatus   @default(pending)
+  paymentStatus  PaymentStatus @default(pending) @map("payment_status")
+  paymentMethod  String        @default("Cash on Delivery") @map("payment_method")
+  shippingName   String        @map("shipping_name")
+  shippingPhone  String        @map("shipping_phone")
+  shippingCity   String        @map("shipping_city")
+  shippingStreet String        @map("shipping_street")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  // Shipping address (embedded)
-  shippingName   String @map("shipping_name")
-  shippingPhone  String @map("shipping_phone")
-  shippingCity   String @map("shipping_city")
-  shippingStreet String @map("shipping_street")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // Relations
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items OrderItem[]
 
@@ -306,15 +270,11 @@ model OrderItem {
   @@map("order_items")
 }
 
-// ============================================
-// COMMENTS & RATINGS
-// ============================================
-
 model Comment {
   id        String   @id @default(cuid())
   productId String   @map("product_id")
   userId    String   @map("user_id")
-  content   String   @db.Text
+  content   String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -332,8 +292,8 @@ model Rating {
   productId String?  @map("product_id")
   shopId    String?  @map("shop_id")
   userId    String   @map("user_id")
-  rating    Int // 1-5
-  comment   String?  @db.Text
+  rating    Int
+  comment   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -348,10 +308,6 @@ model Rating {
   @@index([userId])
   @@map("ratings")
 }
-
-// ============================================
-// ACTIVITY TRACKING
-// ============================================
 
 model Activity {
   id          String       @id @default(cuid())
@@ -373,48 +329,36 @@ model Activity {
   @@map("activities")
 }
 
-// ============================================
-// PAYMENT (M-PESA)
-// ============================================
-
 model MpesaTransaction {
   id                 String            @id @default(cuid())
   merchantRequestId  String            @map("merchant_request_id")
   checkoutRequestId  String            @unique @map("checkout_request_id")
-  resultCode         Int?              @map("result_code")
-  resultDesc         String?           @map("result_desc")
+  resultCode         Int?
+  resultDesc         String?
   amount             Float?
   mpesaReceiptNumber String?           @map("mpesa_receipt_number")
   transactionDate    DateTime?         @map("transaction_date")
   phoneNumber        String            @map("phone_number")
   status             TransactionStatus @default(pending)
   userId             String?           @map("user_id")
-  metadata           Json? // Store plan info, etc.
+  metadata           Json?
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([checkoutRequestId])
-  @@index([userId])
-  @@index([status])
   @@map("mpesa_transactions")
 }
 
-// ============================================
-// CONTACT FORM
-// ============================================
-
 model Contact {
-  id        String   @id @default(cuid())
+  id        String   @id
   name      String
   email     String
   subject   String
-  message   String   @db.Text
+  message   String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([email])
   @@index([createdAt(sort: Desc)])
   @@map("contacts")
 }

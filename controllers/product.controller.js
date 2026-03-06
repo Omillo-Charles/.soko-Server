@@ -1,12 +1,10 @@
-import Product from "../models/product.model.js";
-import Shop from "../models/shop.model.js";
-import Activity from "../models/activity.model.js";
-import Rating from "../models/rating.model.js";
+import prisma from "../database/postgresql.js";
+import { uploadToImageKit } from "../config/imagekit.js";
 
 export const trackActivity = async (req, res, next) => {
     try {
         const { type, productId, category, searchQuery } = req.body;
-        const userId = req.user ? req.user._id : null;
+        const userId = req.user ? (req.user.id || req.user._id?.toString()) : null;
 
         if (!userId) {
             // Skip tracking for guests for now, or you could implement anonymous tracking
@@ -26,13 +24,15 @@ export const trackActivity = async (req, res, next) => {
             purchase: 10
         };
 
-        const activity = await Activity.create({
-            userId,
-            type,
-            productId,
-            category,
-            searchQuery,
-            weight: weights[type] || 1
+        const activity = await prisma.activity.create({
+            data: {
+                userId,
+                type,
+                productId,
+                category,
+                searchQuery,
+                weight: weights[type] || 1
+            }
         });
 
         res.status(201).json({
@@ -46,35 +46,35 @@ export const trackActivity = async (req, res, next) => {
 
 export const getPersonalizedFeed = async (req, res, next) => {
     try {
-        const userId = req.user ? req.user._id : null;
+        const userId = req.user ? (req.user.id || req.user._id?.toString()) : null;
         const { limit = 12 } = req.query;
         const limitValue = parseInt(limit) || 12;
 
         if (!userId) {
-            // Fallback for non-logged in users: return latest products
-            const products = await Product.find({})
-                .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
-                .sort({ createdAt: -1 })
-                .limit(limitValue);
+            const products = await prisma.product.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: limitValue,
+                include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
+            });
             
             return res.status(200).json({ success: true, data: products });
         }
 
-        // 1. Get user's recent activities to determine preferences
-        const recentActivities = await Activity.find({ userId })
-            .sort({ createdAt: -1 })
-            .limit(100);
+        const recentActivities = await prisma.activity.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
 
         if (recentActivities.length === 0) {
-            // Fallback for users with no activity
-            const products = await Product.find({})
-                .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
-                .sort({ createdAt: -1 })
-                .limit(limitValue);
+            const products = await prisma.product.findMany({
+                orderBy: { createdAt: 'desc' },
+                take: limitValue,
+                include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
+            });
             return res.status(200).json({ success: true, data: products });
         }
 
-        // 2. Calculate category and product weights
         const categoryWeights = {};
         const productWeights = {};
 
@@ -87,44 +87,34 @@ export const getPersonalizedFeed = async (req, res, next) => {
             }
         });
 
-        // 3. Get top categories
         const sortedCategories = Object.entries(categoryWeights)
             .sort((a, b) => b[1] - a[1])
             .map(entry => entry[0]);
 
-        // 4. Build recommendation query
-        // Boost products from top categories and recently interacted products
         const topCategories = sortedCategories.slice(0, 3);
         
-        let products = await Product.find({
-            // Exclude products already purchased if we had that logic, 
-            // for now just show everything but boosted
-        })
-        .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop });
+        let products = await prisma.product.findMany({
+            include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
+        });
 
-        // 5. Apply scoring in-memory (for simple implementation)
         const scoredProducts = products.map(product => {
             let score = 0;
             
-            // Boost by category preference
             const catIndex = topCategories.indexOf(product.category);
             if (catIndex !== -1) {
                 score += (3 - catIndex) * 10; // 30 for top cat, 20 for second, 10 for third
             }
 
-            // Boost by specific product interaction
-            if (productWeights[product._id.toString()]) {
-                score += productWeights[product._id.toString()] * 2;
+            if (productWeights[product.id]) {
+                score += productWeights[product.id] * 2;
             }
 
-            // Recency boost (simple)
             const daysOld = (Date.now() - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
             score += Math.max(0, 20 - daysOld); // Up to 20 points for new products
 
             return { product, score };
         });
 
-        // Sort by score and take limit
         const finalProducts = scoredProducts
             .sort((a, b) => b.score - a.score)
             .slice(0, limitValue)
@@ -144,7 +134,7 @@ export const rateProduct = async (req, res, next) => {
     try {
         const { id: productId } = req.params;
         const { rating } = req.body;
-        const userId = req.user._id;
+        const userId = req.user?.id || req.user?._id?.toString();
 
         if (!rating || rating < 1 || rating > 5) {
             const error = new Error('Please provide a valid rating between 1 and 5');
@@ -152,37 +142,31 @@ export const rateProduct = async (req, res, next) => {
             throw error;
         }
 
-        // Check if product exists
-        const product = await Product.findById(productId);
+        const product = await prisma.product.findUnique({ where: { id: productId } });
         if (!product) {
             const error = new Error('Product not found');
             error.statusCode = 404;
             throw error;
         }
 
-        // Update or create rating
-        const existingRating = await Rating.findOne({ product: productId, user: userId });
-        
-        if (existingRating) {
-            existingRating.rating = rating;
-            await existingRating.save();
-        } else {
-            await Rating.create({
-                product: productId,
-                user: userId,
-                rating
-            });
-        }
+        await prisma.rating.upsert({
+            where: { unique_product_user_rating: { productId, userId } },
+            update: { rating },
+            create: { productId, userId, rating }
+        });
 
-        // Recalculate average rating
-        const ratings = await Rating.find({ product: productId });
-        const reviewsCount = ratings.length;
-        const averageRating = ratings.reduce((sum, item) => sum + item.rating, 0) / reviewsCount;
+        const agg = await prisma.rating.aggregate({
+            where: { productId },
+            _avg: { rating: true },
+            _count: { rating: true }
+        });
+        const reviewsCount = agg._count.rating || 0;
+        const averageRating = agg._avg.rating || 0;
 
-        // Update product with new rating info
-        product.rating = averageRating;
-        product.reviewsCount = reviewsCount;
-        await product.save();
+        await prisma.product.update({
+            where: { id: productId },
+            data: { rating: averageRating, reviewsCount }
+        });
 
         res.status(200).json({
             success: true,
@@ -201,18 +185,34 @@ export const createProduct = async (req, res, next) => {
     try {
         const { name, description, content, price, category, stock, sizes, colors } = req.body;
         
-        // Find user's shop
-        const shop = await Shop.findOne({ owner: req.user._id });
+        console.log("Create Product Request:", { 
+            name, 
+            price, 
+            stock, 
+            files: req.files ? req.files.length : 0 
+        });
+
+        const ownerId = req.user?.id || req.user?._id?.toString();
+        const shop = await prisma.shop.findUnique({ where: { ownerId } });
         if (!shop) {
+            console.error("Create Product Error: Shop not found for owner", ownerId);
             const error = new Error('User does not have a shop. Please register a shop first.');
             error.statusCode = 403;
             throw error;
         }
 
-        // Get image URLs from Cloudinary if uploaded
         let images = [];
         if (req.files && req.files.length > 0) {
-            images = req.files.map(file => file.path);
+            console.log("Uploading product images to ImageKit...");
+            try {
+                const uploadPromises = req.files.map(file => uploadToImageKit(file, "duuka/products"));
+                const results = await Promise.all(uploadPromises);
+                images = results.map(result => result.url);
+                console.log("Successfully uploaded images:", images);
+            } catch (uploadError) {
+                console.error("ImageKit upload failed during product creation:", uploadError);
+                throw uploadError;
+            }
         } else if (req.body.image) {
             images = [req.body.image];
         }
@@ -223,7 +223,6 @@ export const createProduct = async (req, res, next) => {
             throw error;
         }
 
-        // Handle variations
         let parsedSizes = [];
         let parsedColors = [];
         
@@ -247,19 +246,32 @@ export const createProduct = async (req, res, next) => {
             parsedColors = colors;
         }
 
-        const product = await Product.create({
-            shop: shop._id,
+        images = images.slice(0, 3);
+        
+        console.log("Creating product in Prisma with data:", {
+            shopId: shop.id,
             name,
-            description,
-            content: content || description,
-            price,
-            category,
-            stock,
-            image: images[0],
-            images,
-            sizes: parsedSizes,
-            colors: parsedColors
+            price: parseFloat(price),
+            stock: parseInt(stock) || 1
         });
+
+        const product = await prisma.product.create({
+            data: {
+                shopId: shop.id,
+                name,
+                description,
+                content: content || description,
+                price: parseFloat(price) || 0,
+                category,
+                stock: parseInt(stock) || 1,
+                image: images[0],
+                images,
+                sizes: parsedSizes,
+                colors: parsedColors
+            }
+        });
+
+        console.log("Product created successfully:", product.id);
 
         res.status(201).json({
             success: true,
@@ -267,6 +279,7 @@ export const createProduct = async (req, res, next) => {
             data: product
         });
     } catch (error) {
+        console.error("Create Product Controller Error:", error);
         next(error);
     }
 };
@@ -274,50 +287,61 @@ export const createProduct = async (req, res, next) => {
 export const getProducts = async (req, res, next) => {
     try {
         const { q, cat, shop, minPrice, maxPrice, limit, page = 1 } = req.query;
-        let query = {};
+        const where = {};
 
         if (q) {
-            query.$or = [
-                { name: { $regex: q, $options: 'i' } },
-                { description: { $regex: q, $options: 'i' } }
+            where.OR = [
+                { name: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } }
             ];
         }
 
         if (cat && cat !== 'all') {
-            query.category = cat;
+            where.category = cat;
         }
 
         if (shop) {
-            query.shop = shop;
+            where.shopId = shop;
         }
 
-        // Price filtering
         if (minPrice || maxPrice) {
-            query.price = {};
-            if (minPrice) query.price.$gte = parseFloat(minPrice);
-            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+            where.price = {};
+            if (minPrice) where.price.gte = parseFloat(minPrice);
+            if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
         const limitValue = parseInt(limit);
         const pageValue = parseInt(page) || 1;
         const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
 
-        let productsQuery = Product.find(query)
-            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
-            .sort({ createdAt: -1 });
+        const commonInclude = { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } };
+        let products;
 
-        // If limit is explicitly -1, don't apply any limit
         if (limitValue > 0) {
-            productsQuery = productsQuery.limit(limitValue).skip(skipValue);
+            products = await prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limitValue,
+                skip: skipValue,
+                include: commonInclude
+            });
         } else if (limitValue === -1) {
-            // No limit applied
+            products = await prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                include: commonInclude
+            });
         } else {
-            // Default limit if not provided or 0
-            productsQuery = productsQuery.limit(100).skip(skipValue);
+            products = await prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: 100,
+                skip: skipValue,
+                include: commonInclude
+            });
         }
 
-        const products = await productsQuery;
-        const total = await Product.countDocuments(query);
+        const total = await prisma.product.count({ where });
 
         res.status(200).json({
             success: true,
@@ -354,31 +378,32 @@ export const getProductsByShopId = async (req, res, next) => {
         const pageValue = parseInt(page) || 1;
         const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
 
-        let query = { shop: id };
+        const where = { shopId: id };
 
-        // Price filtering
         if (minPrice || maxPrice) {
-            query.price = {};
-            if (minPrice) query.price.$gte = parseFloat(minPrice);
-            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+            where.price = {};
+            if (minPrice) where.price.gte = parseFloat(minPrice);
+            if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
-        let queryBuilder = Product.find(query)
-            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
-            .sort({ createdAt: -1 });
+        const include = { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } };
+        let products;
 
-        // If limit is explicitly -1, don't apply any limit
         if (limitValue > 0) {
-            queryBuilder = queryBuilder.limit(limitValue).skip(skipValue);
+            products = await prisma.product.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limitValue,
+                skip: skipValue,
+                include
+            });
         } else if (limitValue === -1) {
-            // No limit applied
+            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, include });
         } else {
-            // Default limit if not provided or 0
-            queryBuilder = queryBuilder.limit(100).skip(skipValue);
+            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100, skip: skipValue, include });
         }
 
-        const products = await queryBuilder;
-        const total = await Product.countDocuments(query);
+        const total = await prisma.product.count({ where });
 
         res.status(200).json({
             success: true,
@@ -411,7 +436,7 @@ export const getProductsByShopHandle = async (req, res, next) => {
         const { username } = req.params;
         const { minPrice, maxPrice, limit, page = 1 } = req.query;
 
-        const shop = await Shop.findOne({ username: username.toLowerCase() });
+        const shop = await prisma.shop.findUnique({ where: { username: username.toLowerCase() } });
         if (!shop) {
             const error = new Error('Shop not found');
             error.statusCode = 404;
@@ -422,31 +447,26 @@ export const getProductsByShopHandle = async (req, res, next) => {
         const pageValue = parseInt(page) || 1;
         const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
 
-        let query = { shop: shop._id };
+        const where = { shopId: shop.id };
 
-        // Price filtering
         if (minPrice || maxPrice) {
-            query.price = {};
-            if (minPrice) query.price.$gte = parseFloat(minPrice);
-            if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+            where.price = {};
+            if (minPrice) where.price.gte = parseFloat(minPrice);
+            if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
-        let queryBuilder = Product.find(query)
-            .populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop })
-            .sort({ createdAt: -1 });
+        const include = { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } };
+        let products;
 
-        // If limit is explicitly -1, don't apply any limit
         if (limitValue > 0) {
-            queryBuilder = queryBuilder.limit(limitValue).skip(skipValue);
+            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: limitValue, skip: skipValue, include });
         } else if (limitValue === -1) {
-            // No limit applied
+            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, include });
         } else {
-            // Default limit if not provided or 0
-            queryBuilder = queryBuilder.limit(100).skip(skipValue);
+            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100, skip: skipValue, include });
         }
 
-        const products = await queryBuilder;
-        const total = await Product.countDocuments(query);
+        const total = await prisma.product.count({ where });
 
         res.status(200).json({
             success: true,
@@ -476,13 +496,16 @@ export const getProductsByShopHandle = async (req, res, next) => {
 
 export const getMyProducts = async (req, res, next) => {
     try {
-        const shop = await Shop.findOne({ owner: req.user._id });
+        const ownerId = req.user?.id || req.user?._id?.toString();
+        const shop = await prisma.shop.findUnique({ where: { ownerId } });
         if (!shop) {
             return res.status(200).json({ success: true, data: [] });
         }
 
-        const products = await Product.find({ shop: shop._id })
-            .sort({ createdAt: -1 });
+        const products = await prisma.product.findMany({
+            where: { shopId: shop.id },
+            orderBy: { createdAt: 'desc' }
+        });
 
         res.status(200).json({
             success: true,
@@ -495,7 +518,10 @@ export const getMyProducts = async (req, res, next) => {
 
 export const getProductById = async (req, res, next) => {
     try {
-        const product = await Product.findById(req.params.id).populate({ path: 'shop', select: 'name username avatar isVerified', model: Shop });
+        const product = await prisma.product.findUnique({
+            where: { id: req.params.id },
+            include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
+        });
         if (!product) {
             const error = new Error('Product not found');
             error.statusCode = 404;
@@ -514,16 +540,23 @@ export const getProductById = async (req, res, next) => {
 export const updateProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const shop = await Shop.findOne({ owner: req.user._id });
+        const { name, description, content, price, category, stock } = req.body;
+        
+        console.log("Update Product Request:", { id, name, price, stock });
+
+        const ownerId = req.user?.id || req.user?._id?.toString();
+        const shop = await prisma.shop.findUnique({ where: { ownerId } });
         
         if (!shop) {
+            console.error("Update Product Error: Shop not found for owner", ownerId);
             const error = new Error('Shop not found');
             error.statusCode = 404;
             throw error;
         }
 
-        const product = await Product.findOne({ _id: id, shop: shop._id });
-        if (!product) {
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product || product.shopId !== shop.id) {
+            console.error("Update Product Error: Product not found or unauthorized", { id, shopId: shop.id });
             const error = new Error('Product not found or unauthorized');
             error.statusCode = 404;
             throw error;
@@ -531,12 +564,16 @@ export const updateProduct = async (req, res, next) => {
 
         const updates = { ...req.body };
         
-        // Handle variations
+        // Handle numeric fields
+        if (price !== undefined) updates.price = parseFloat(price);
+        if (stock !== undefined) updates.stock = parseInt(stock);
+        
         if (req.body.sizes) {
             try {
                 updates.sizes = typeof req.body.sizes === 'string' ? JSON.parse(req.body.sizes) : req.body.sizes;
             } catch (e) {
                 console.error("Error parsing sizes:", e);
+                updates.sizes = typeof req.body.sizes === 'string' ? req.body.sizes.split(',').map(s => s.trim()) : req.body.sizes;
             }
         }
         if (req.body.colors) {
@@ -544,16 +581,15 @@ export const updateProduct = async (req, res, next) => {
                 updates.colors = typeof req.body.colors === 'string' ? JSON.parse(req.body.colors) : req.body.colors;
             } catch (e) {
                 console.error("Error parsing colors:", e);
+                updates.colors = typeof req.body.colors === 'string' ? req.body.colors.split(',').map(c => c.trim()) : req.body.colors;
             }
         }
         
-        // Handle images
         let currentImages = [];
         
-        // Add existing images that were kept
         if (req.body.existingImages) {
             try {
-                const existing = JSON.parse(req.body.existingImages);
+                const existing = typeof req.body.existingImages === 'string' ? JSON.parse(req.body.existingImages) : req.body.existingImages;
                 if (Array.isArray(existing)) {
                     currentImages = [...existing];
                 }
@@ -562,13 +598,20 @@ export const updateProduct = async (req, res, next) => {
             }
         }
 
-        // Add new uploaded images
         if (req.files && req.files.length > 0) {
-            const newImages = req.files.map(file => file.path);
-            currentImages = [...currentImages, ...newImages];
+            console.log("Uploading new product images to ImageKit (Update)...");
+            try {
+                const uploadPromises = req.files.map(file => uploadToImageKit(file, "duuka/products"));
+                const results = await Promise.all(uploadPromises);
+                const newImages = results.map(result => result.url);
+                currentImages = [...currentImages, ...newImages];
+                console.log("Successfully uploaded new images:", newImages);
+            } catch (uploadError) {
+                console.error("ImageKit upload failed during product update:", uploadError);
+                throw uploadError;
+            }
         }
 
-        // Limit to 3 images
         currentImages = currentImages.slice(0, 3);
 
         if (currentImages.length > 0) {
@@ -576,11 +619,16 @@ export const updateProduct = async (req, res, next) => {
             updates.image = currentImages[0];
         }
 
-        const updatedProduct = await Product.findByIdAndUpdate(
-            id,
-            { $set: updates },
-            { new: true }
-        );
+        // Remove existingImages from updates as it's not in the Prisma model
+        delete updates.existingImages;
+
+        console.log("Updating product in Prisma with data:", updates);
+        const updatedProduct = await prisma.product.update({
+            where: { id },
+            data: updates
+        });
+
+        console.log("Product updated successfully:", updatedProduct.id);
 
         res.status(200).json({
             success: true,
@@ -588,6 +636,7 @@ export const updateProduct = async (req, res, next) => {
             data: updatedProduct
         });
     } catch (error) {
+        console.error("Update Product Controller Error:", error);
         next(error);
     }
 };
@@ -595,7 +644,8 @@ export const updateProduct = async (req, res, next) => {
 export const deleteProduct = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const shop = await Shop.findOne({ owner: req.user._id });
+        const ownerId = req.user?.id || req.user?._id?.toString();
+        const shop = await prisma.shop.findUnique({ where: { ownerId } });
         
         if (!shop) {
             const error = new Error('Shop not found');
@@ -603,12 +653,13 @@ export const deleteProduct = async (req, res, next) => {
             throw error;
         }
 
-        const product = await Product.findOneAndDelete({ _id: id, shop: shop._id });
-        if (!product) {
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product || product.shopId !== shop.id) {
             const error = new Error('Product not found or unauthorized');
             error.statusCode = 404;
             throw error;
         }
+        await prisma.product.delete({ where: { id } });
 
         res.status(200).json({
             success: true,

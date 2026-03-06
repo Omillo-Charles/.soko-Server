@@ -16,6 +16,7 @@ import orderRouter from "./routes/order.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import passport from "./config/passport.js";
+import { connectPostgres } from "./database/postgresql.js";
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use(errorMiddleware);
 
 app.listen(PORT, async ()=>{
   console.log(`The .soko Backend API is running on http://localhost:${PORT}`);
+  connectPostgres().catch(err => console.error('PostgreSQL connection error:', err.message));
 });
 
 export default app;

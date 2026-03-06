@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createProduct, getProducts, getProductById, getMyProducts, updateProduct, deleteProduct, getProductsByShopId, rateProduct, getPersonalizedFeed, trackActivity, getProductsByShopHandle } from "../controllers/product.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
-import { upload } from "../config/cloudinary.js";
+import { upload } from "../config/imagekit.js";
 
 const productRouter = Router();
 

@@ -1,7 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
-import User from '../models/user.model.js';
+import prisma from '../database/postgresql.js';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL } from './env.js';
 import { sendEmail } from './nodemailer.js';
 import { getWelcomeEmailTemplate } from '../utils/emailTemplates.js';
@@ -16,26 +16,28 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
 }, async (req, accessToken, refreshToken, profile, done) => {
     try {
-        let user = await User.findOne({ googleId: profile.id });
+        let user = await prisma.user.findFirst({ where: { googleId: profile.id } });
 
         if (!user) {
-            // Check if user exists with the same email
-            user = await User.findOne({ email: profile.emails[0].value });
+            const email = profile.emails[0].value;
+            user = await prisma.user.findUnique({ where: { email } });
 
             if (user) {
-                // Link google account to existing email
-                user.googleId = profile.id;
-                await user.save();
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: { googleId: profile.id }
+                });
+                user = await prisma.user.findUnique({ where: { id: user.id } });
             } else {
-                // Create new user
-                user = await User.create({
-                    name: profile.displayName,
-                    email: profile.emails[0].value,
-                    googleId: profile.id,
-                    isVerified: true // Social users are verified by the provider
+                user = await prisma.user.create({
+                    data: {
+                        name: profile.displayName,
+                        email,
+                        googleId: profile.id,
+                        isVerified: true
+                    }
                 });
 
-                // Send Welcome Email for Social Signup
                 try {
                     const template = getWelcomeEmailTemplate(user.name, 'Google');
                     await sendEmail({
@@ -45,7 +47,7 @@ passport.use(new GoogleStrategy({
                         html: template.html
                     });
                 } catch (emailError) {
-                    console.error('Failed to send social welcome email:', emailError);
+                    
                 }
             }
         }
@@ -63,26 +65,28 @@ passport.use(new GitHubStrategy({
     proxy: true
 }, async (accessToken, refreshToken, profile, done) => {
     try {
-        let user = await User.findOne({ githubId: profile.id });
+        let user = await prisma.user.findFirst({ where: { githubId: profile.id } });
 
         if (!user) {
-            // GitHub doesn't always provide a public email, so we handle it
             const email = profile.emails && profile.emails[0] ? profile.emails[0].value : `${profile.username}@github.com`;
-            
-            user = await User.findOne({ email });
+            user = await prisma.user.findUnique({ where: { email } });
 
             if (user) {
-                user.githubId = profile.id;
-                await user.save();
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: { githubId: profile.id }
+                });
+                user = await prisma.user.findUnique({ where: { id: user.id } });
             } else {
-                user = await User.create({
-                    name: profile.displayName || profile.username,
-                    email: email,
-                    githubId: profile.id,
-                    isVerified: true // Social users are verified by the provider
+                user = await prisma.user.create({
+                    data: {
+                        name: profile.displayName || profile.username,
+                        email,
+                        githubId: profile.id,
+                        isVerified: true
+                    }
                 });
 
-                // Send Welcome Email for Social Signup
                 try {
                     const template = getWelcomeEmailTemplate(user.name, 'GitHub');
                     await sendEmail({
@@ -92,7 +96,7 @@ passport.use(new GitHubStrategy({
                         html: template.html
                     });
                 } catch (emailError) {
-                    console.error('Failed to send social welcome email:', emailError);
+                    
                 }
             }
         }
@@ -105,7 +109,7 @@ passport.use(new GitHubStrategy({
 // We don't need full sessions as we use JWT, but passport requires these
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser((id, done) => {
-    User.findById(id).then(user => done(null, user));
+    prisma.user.findUnique({ where: { id } }).then(user => done(null, user));
 });
 
 export default passport;

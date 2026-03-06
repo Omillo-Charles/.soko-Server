@@ -15,15 +15,19 @@ import {
     getShopByHandle,
     getShopReviewsByHandle,
     getShopFollowersByHandle,
-    getShopFollowingByHandle
+    getShopFollowingByHandle,
+    rateShopByHandle
 } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
-import { upload } from "../config/cloudinary.js";
+import { upload } from "../config/imagekit.js";
 
 const shopRouter = Router();
 
 shopRouter.get("/", getShops);
-shopRouter.post("/", authorize, createShop);
+shopRouter.post("/", authorize, upload.fields([
+    { name: 'avatar', maxCount: 1 },
+    { name: 'banner', maxCount: 1 }
+]), createShop);
 shopRouter.get("/my-shop", authorize, getMyShop);
 shopRouter.get("/:id", getShopById);
 shopRouter.get("/handle/:username", getShopByHandle);
@@ -42,5 +46,6 @@ shopRouter.get("/handle/:username/reviews", getShopReviewsByHandle);
 shopRouter.get("/handle/:username/followers", getShopFollowersByHandle);
 shopRouter.get("/handle/:username/following", getShopFollowingByHandle);
 shopRouter.post("/:id/rate", authorize, rateShop);
+shopRouter.post("/handle/:username/rate", authorize, rateShopByHandle);
 
 export default shopRouter;

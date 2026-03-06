@@ -1,4 +1,4 @@
-import prisma from "../database/neon.js";
+import prisma from "../database/postgresql.js";
 import { customAlphabet } from 'nanoid';
 
 // Generate CUID-like IDs (compatible with Prisma's cuid())

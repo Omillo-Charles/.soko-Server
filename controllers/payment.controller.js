@@ -1,6 +1,5 @@
 import axios from "axios";
-import User from "../models/user.model.js";
-import Shop from "../models/shop.model.js";
+import prisma from "../database/postgresql.js";
 import { 
     MPESA_SHORTCODE, 
     MPESA_PASSKEY, 
@@ -8,34 +7,35 @@ import {
     MPESA_ENVIRONMENT
 } from "../config/env.js";
 import { getMpesaAccessToken, getMpesaTimestamp } from "../utils/mpesa.js";
-import MpesaTransaction from "../models/mpesaTransaction.model.js";
+// Prisma model: MpesaTransaction
 
 // Helper to activate premium status
 const activatePremium = async (userId, planName, isAnnual) => {
     try {
         console.log(`Activating premium for user ${userId} with plan ${planName}`);
         
-        const user = await User.findById(userId);
+        const user = await prisma.user.findUnique({ where: { id: userId } });
         if (user) {
-            user.isPremium = true;
-            user.premiumPlan = planName; // Make sure "Premium" is allowed in User model enum
-            
-            // Set expiration date
             const expiryDate = new Date();
             if (isAnnual) {
                 expiryDate.setFullYear(expiryDate.getFullYear() + 1);
             } else {
                 expiryDate.setMonth(expiryDate.getMonth() + 1);
             }
-            user.premiumUntil = expiryDate;
-            await user.save();
+            await prisma.user.update({
+                where: { id: userId },
+                data: {
+                    isPremium: true,
+                    premiumPlan: planName,
+                    premiumUntil: expiryDate
+                }
+            });
 
-            // Also verify the shop if the user is a seller
             if (user.accountType === "seller") {
-                await Shop.findOneAndUpdate(
-                    { owner: userId },
-                    { isVerified: true }
-                );
+                const shop = await prisma.shop.findUnique({ where: { ownerId: userId } });
+                if (shop) {
+                    await prisma.shop.update({ where: { id: shop.id }, data: { isVerified: true } });
+                }
             }
             
             console.log(`Premium status activated for user ${user.email} until ${expiryDate}`);
@@ -54,7 +54,7 @@ export const initiateSTKPush = async (req, res, next) => {
     try {
         const { phoneNumber, amount, metadata } = req.body;
         console.log(`Initiating STK Push for amount: ${amount}, phone: ${phoneNumber}`);
-        const userId = req.user?._id;
+        const userId = req.user?.id || req.user?._id?.toString();
 
         if (!userId) {
              return res.status(401).json({ success: false, message: "User not authenticated" });
@@ -97,15 +97,16 @@ export const initiateSTKPush = async (req, res, next) => {
         });
 
         if (response.data.ResponseCode === "0") {
-            // Save pending transaction to DB
-            await MpesaTransaction.create({
-                merchantRequestId: response.data.MerchantRequestID,
-                checkoutRequestId: response.data.CheckoutRequestID,
-                amount,
-                phoneNumber: formattedPhone,
-                userId,
-                metadata,
-                status: 'pending'
+            await prisma.mpesaTransaction.create({
+                data: {
+                    merchantRequestId: response.data.MerchantRequestID,
+                    checkoutRequestId: response.data.CheckoutRequestID,
+                    amount,
+                    phoneNumber: formattedPhone,
+                    userId,
+                    metadata,
+                    status: 'pending'
+                }
             });
 
             return res.status(200).json({
@@ -135,66 +136,73 @@ export const stkCallback = async (req, res) => {
 
         const { MerchantRequestID, CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = stkCallback;
 
-        const transaction = await MpesaTransaction.findOne({ checkoutRequestId: CheckoutRequestID });
+        const transaction = await prisma.mpesaTransaction.findUnique({ where: { checkoutRequestId: CheckoutRequestID } });
 
         if (!transaction) {
             console.error("Transaction not found for CheckoutRequestID:", CheckoutRequestID);
             return res.status(404).json({ success: false, message: "Transaction not found" });
         }
 
-        transaction.resultCode = ResultCode;
-        transaction.resultDesc = ResultDesc;
+        await prisma.mpesaTransaction.update({
+            where: { id: transaction.id },
+            data: {
+                resultCode: ResultCode,
+                resultDesc: ResultDesc
+            }
+        });
 
-        if (transaction.status === 'completed') {
+        const refreshed = await prisma.mpesaTransaction.findUnique({ where: { id: transaction.id } });
+        if (refreshed.status === 'completed') {
             console.log(`Transaction ${CheckoutRequestID} already completed. Updating metadata only.`);
             
-            // Still try to extract receipt number if we missed it from Query
             if (CallbackMetadata && CallbackMetadata.Item) {
                 const items = CallbackMetadata.Item;
                 const receiptItem = items.find(i => i.Name === 'MpesaReceiptNumber');
                 if (receiptItem) {
-                    transaction.mpesaReceiptNumber = receiptItem.Value;
-                    await transaction.save();
+                    await prisma.mpesaTransaction.update({
+                        where: { id: refreshed.id },
+                        data: { mpesaReceiptNumber: receiptItem.Value }
+                    });
                 }
             }
             return res.status(200).json({ success: true });
         }
 
         if (ResultCode === 0) {
-            // Success
-            transaction.status = 'completed';
+            let receipt = null;
             
-            // Extract metadata
             if (CallbackMetadata && CallbackMetadata.Item) {
                 const items = CallbackMetadata.Item;
                 const receiptItem = items.find(i => i.Name === 'MpesaReceiptNumber');
                 if (receiptItem) {
-                    transaction.mpesaReceiptNumber = receiptItem.Value;
+                    receipt = receiptItem.Value;
                 }
             }
-            transaction.transactionDate = new Date();
-            
-            // Save transaction FIRST before attempting activation
-            await transaction.save();
+            const updatedTx = await prisma.mpesaTransaction.update({
+                where: { id: refreshed.id },
+                data: {
+                    status: 'completed',
+                    mpesaReceiptNumber: receipt,
+                    transactionDate: new Date()
+                }
+            });
 
-            // Handle Premium Upgrade
-            if (transaction.metadata?.type === "premium_upgrade") {
+            if (updatedTx.metadata?.type === "premium_upgrade") {
                 try {
-                    const { planName, isAnnual } = transaction.metadata;
-                    await activatePremium(transaction.userId, planName, isAnnual);
+                    const { planName, isAnnual } = updatedTx.metadata;
+                    await activatePremium(updatedTx.userId || undefined, planName, isAnnual);
                 } catch (activationError) {
                     console.error("Premium Activation Error:", activationError);
-                    // We don't fail the transaction if activation fails, but we should log it
-                    // Ideally we should have a way to retry activation
                 }
             }
             
-            console.log(`Payment successful for ${transaction.phoneNumber}. Receipt: ${transaction.mpesaReceiptNumber}`);
+            console.log(`Payment successful for ${updatedTx.phoneNumber}. Receipt: ${receipt}`);
         } else {
-            // Failed or Cancelled
-            transaction.status = 'failed';
-            console.log(`Payment failed for ${transaction.phoneNumber}: ${ResultDesc}`);
-            await transaction.save();
+            await prisma.mpesaTransaction.update({
+                where: { id: refreshed.id },
+                data: { status: 'failed' }
+            });
+            console.log(`Payment failed for ${refreshed.phoneNumber}: ${ResultDesc}`);
         }
 
         // Safaricom expects a 200 OK response
@@ -209,7 +217,7 @@ export const stkCallback = async (req, res) => {
 export const getTransactionStatus = async (req, res, next) => {
     try {
         const { checkoutRequestId } = req.params;
-        const transaction = await MpesaTransaction.findOne({ checkoutRequestId });
+        const transaction = await prisma.mpesaTransaction.findUnique({ where: { checkoutRequestId } });
 
         if (!transaction) {
             return res.status(404).json({ success: false, message: "Transaction not found" });
@@ -250,25 +258,29 @@ export const getTransactionStatus = async (req, res, next) => {
                 // We got a valid response from Safaricom Query
                 const { ResultCode, ResultDesc } = response.data;
 
-                transaction.resultCode = ResultCode;
-                transaction.resultDesc = ResultDesc;
+                let finalTx = await prisma.mpesaTransaction.update({
+                    where: { id: transaction.id },
+                    data: {
+                        resultCode: ResultCode,
+                        resultDesc: ResultDesc
+                    }
+                });
 
-                if (ResultCode === "0") { // Note: Query API returns string "0" sometimes, callback returns number 0
-                    transaction.status = 'completed';
-                    transaction.transactionDate = new Date();
-                    await transaction.save();
+                if (ResultCode === "0") {
+                    finalTx = await prisma.mpesaTransaction.update({
+                        where: { id: transaction.id },
+                        data: { status: 'completed', transactionDate: new Date() }
+                    });
 
-                    // Activate Premium if needed
-                    if (transaction.metadata?.type === "premium_upgrade") {
-                        const { planName, isAnnual } = transaction.metadata;
-                        await activatePremium(transaction.userId, planName, isAnnual);
+                    if (finalTx.metadata?.type === "premium_upgrade") {
+                        const { planName, isAnnual } = finalTx.metadata;
+                        await activatePremium(finalTx.userId || undefined, planName, isAnnual);
                     }
                 } else {
-                    // If ResultCode is NOT 0, it means the user cancelled or failed payment
-                    // BUT be careful: "1032" is Cancelled.
-                    // If Safaricom returns a ResultCode, the transaction is FINAL.
-                    transaction.status = 'failed';
-                    await transaction.save();
+                    await prisma.mpesaTransaction.update({
+                        where: { id: transaction.id },
+                        data: { status: 'failed' }
+                    });
                 }
 
                 return res.status(200).json({
