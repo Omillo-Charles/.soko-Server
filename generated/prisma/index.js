@@ -405,7 +405,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "C:\\Users\\omyte\\Documents\\dotSoko\\dotSokoAPI\\generated\\prisma",
+      "value": "/home/omillo-charles/Documents/dotSoko/dotSokoAPI/generated/prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -414,7 +414,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "debian-openssl-3.0.x",
         "native": true
       },
       {
@@ -423,7 +423,7 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "C:\\Users\\omyte\\Documents\\dotSoko\\dotSokoAPI\\prisma\\schema.prisma",
+    "sourceFilePath": "/home/omillo-charles/Documents/dotSoko/dotSokoAPI/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -437,6 +437,7 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": true,
   "inlineDatasources": {
     "db": {
       "url": {
@@ -483,10 +484,6 @@ warnEnvConflicts({
 const PrismaClient = getPrismaClient(config)
 exports.PrismaClient = PrismaClient
 Object.assign(exports, Prisma)
-
-// file annotations for bundling tools to include these files
-path.join(__dirname, "query_engine-windows.dll.node");
-path.join(process.cwd(), "generated/prisma/query_engine-windows.dll.node")
 
 // file annotations for bundling tools to include these files
 path.join(__dirname, "libquery_engine-debian-openssl-3.0.x.so.node");

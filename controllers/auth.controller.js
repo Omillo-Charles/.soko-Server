@@ -5,6 +5,8 @@ import crypto from "crypto";
 import { JWT_EXPIRY, JWT_SECRET, NODE_ENV, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRY, FRONTEND_URL } from "../config/env.js";
 import { sendEmail } from "../config/nodemailer.js";
 import { getWelcomeEmailTemplate, getForgotPasswordEmailTemplate, getVerificationEmailTemplate } from "../utils/emailTemplates.js";
+import logger from "../utils/logger.js";
+import { AppError, NotFoundError, UnauthorizedError, ValidationError, UnauthenticatedError } from "../utils/errors.js";
 
 const generateTokens = (userId) => {
     const accessToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -18,9 +20,7 @@ export const signUp = async (req, res, next) => {
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
-            const error = new Error("User already exists");
-            error.statusCode = 400;
-            throw error;
+            throw new ValidationError("User already exists");
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -115,9 +115,7 @@ export const signIn = async (req, res, next) => {
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (!existingUser) {
-            const error = new Error("User does not exist");
-            error.statusCode = 404;
-            throw error;
+            throw new NotFoundError("User does not exist");
         }
 
         const isMatch = existingUser.password ? await bcrypt.compare(password, existingUser.password) : false;

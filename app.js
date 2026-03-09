@@ -1,9 +1,12 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import logger from "./utils/logger.js";
 import limiter from "./middlewares/limit.middleware.js";
 import { PORT, FRONTEND_URL } from "./config/env.js";
 import authRouter from "./routes/auth.routes.js";
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger.js';
 import userRouter from "./routes/user.routes.js";
 import contactRouter from "./routes/contact.routes.js";
 import shopRouter from "./routes/shop.routes.js";
@@ -47,12 +50,8 @@ app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/stories", storyRouter);
 
-app.get("/", (req, res)=>{
-  res.send({
-    title: ".soko Backend API",
-    body: "Welcome to the .soko Backend API"
-  });
-})
+app.get("/", (req, res) => res.redirect("/api-docs"));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 404 handler for unknown routes
 app.use((req, res) => {
@@ -66,8 +65,8 @@ app.use((req, res) => {
 app.use(errorMiddleware);
 
 app.listen(PORT, async ()=>{
-  console.log(`The .soko Backend API is running on http://localhost:${PORT}`);
-  connectPostgres().catch(err => console.error('PostgreSQL connection error:', err.message));
+  logger.info(`The .soko Backend API is running on http://localhost:${PORT}`);
+  connectPostgres().catch(err => logger.error('PostgreSQL connection error:', { message: err.message }));
 });
 
 export default app;

@@ -1,6 +1,8 @@
 import prisma from "../database/postgresql.js";
 import { uploadToImageKit } from "../config/imagekit.js";
 import { invalidateCache } from "../middlewares/cache.middleware.js";
+import logger from "../utils/logger.js";
+import { AppError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors.js";
 
 export const trackActivity = async (req, res, next) => {
     try {
@@ -51,67 +53,64 @@ export const getPersonalizedFeed = async (req, res, next) => {
         const { limit = 12 } = req.query;
         const limitValue = parseInt(limit) || 12;
 
+        const commonInclude = { 
+            shop: { 
+                select: { 
+                    name: true, 
+                    username: true, 
+                    avatar: true, 
+                    isVerified: true 
+                } 
+            } 
+        };
+
         if (!userId) {
             const products = await prisma.product.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limitValue,
-                include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
+                include: commonInclude
             });
             
             return res.status(200).json({ success: true, data: products });
         }
 
-        const recentActivities = await prisma.activity.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: 100
+        // Optimized: Get top categories based on user activity
+        const topCategories = await prisma.activity.groupBy({
+            by: ['category'],
+            where: { 
+                userId,
+                category: { not: null }
+            },
+            _sum: { weight: true },
+            orderBy: { _sum: { weight: 'desc' } },
+            take: 3
         });
 
-        if (recentActivities.length === 0) {
-            const products = await prisma.product.findMany({
-                orderBy: { createdAt: 'desc' },
-                take: limitValue,
-                include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
-            });
-            return res.status(200).json({ success: true, data: products });
-        }
+        const categoryNames = topCategories.map(c => c.category);
 
-        const categoryWeights = {};
-        const productWeights = {};
-
-        recentActivities.forEach(activity => {
-            if (activity.category) {
-                categoryWeights[activity.category] = (categoryWeights[activity.category] || 0) + activity.weight;
-            }
-            if (activity.productId) {
-                productWeights[activity.productId] = (productWeights[activity.productId] || 0) + activity.weight;
-            }
+        // Fetch products prioritizing these categories
+        const products = await prisma.product.findMany({
+            where: {
+                OR: [
+                    { category: { in: categoryNames } },
+                    { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } // Or newest products
+                ]
+            },
+            include: commonInclude,
+            orderBy: [
+                { createdAt: 'desc' }
+            ],
+            take: limitValue * 2 // Fetch more to allow some in-memory re-ranking if needed
         });
 
-        const sortedCategories = Object.entries(categoryWeights)
-            .sort((a, b) => b[1] - a[1])
-            .map(entry => entry[0]);
-
-        const topCategories = sortedCategories.slice(0, 3);
-        
-        let products = await prisma.product.findMany({
-            include: { shop: { select: { name: true, username: true, avatar: true, isVerified: true } } }
-        });
-
+        // Simple scoring in-memory for the final selection
         const scoredProducts = products.map(product => {
             let score = 0;
-            
-            const catIndex = topCategories.indexOf(product.category);
-            if (catIndex !== -1) {
-                score += (3 - catIndex) * 10; // 30 for top cat, 20 for second, 10 for third
-            }
-
-            if (productWeights[product.id]) {
-                score += productWeights[product.id] * 2;
-            }
+            const catIndex = categoryNames.indexOf(product.category);
+            if (catIndex !== -1) score += (3 - catIndex) * 20;
 
             const daysOld = (Date.now() - new Date(product.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-            score += Math.max(0, 20 - daysOld); // Up to 20 points for new products
+            score += Math.max(0, 30 - daysOld);
 
             return { product, score };
         });
@@ -126,7 +125,7 @@ export const getPersonalizedFeed = async (req, res, next) => {
             data: finalProducts
         });
     } catch (error) {
-        console.error("Error in getPersonalizedFeed:", error);
+        logger.error("Error in getPersonalizedFeed:", error);
         next(error);
     }
 };

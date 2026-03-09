@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../config/env.js";
 import { uploadToImageKit } from "../config/imagekit.js";
 import { invalidateCache } from "../middlewares/cache.middleware.js";
+import logger from "../utils/logger.js";
+import { AppError, NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors.js";
 
 export const createShop = async (req, res, next) => {
     try {
@@ -11,17 +13,13 @@ export const createShop = async (req, res, next) => {
         const ownerId = req.user?.id || req.user?._id?.toString();
         const existingShop = await prisma.shop.findUnique({ where: { ownerId } });
         if (existingShop) {
-            const error = new Error('User already has a shop');
-            error.statusCode = 400;
-            throw error;
+            throw new ValidationError('User already has a shop');
         }
 
         if (username) {
             const existingUsername = await prisma.shop.findUnique({ where: { username: username.toLowerCase() } });
             if (existingUsername) {
-                const error = new Error('Username is already taken');
-                error.statusCode = 400;
-                throw error;
+                throw new ValidationError('Username is already taken');
             }
         }
 

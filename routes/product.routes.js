@@ -3,6 +3,8 @@ import { createProduct, getProducts, getProductById, getMyProducts, updateProduc
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/imagekit.js";
 import cacheMiddleware from "../middlewares/cache.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { createProductSchema, rateProductSchema, updateProductSchema } from "../validations/product.validation.js";
 
 const productRouter = Router();
 
@@ -21,8 +23,8 @@ productRouter.post("/track", (req, res, next) => {
     next();
 }, trackActivity);
 
-productRouter.post("/", authorize, upload.array('image', 10), createProduct);
-productRouter.post("/:id/rate", authorize, rateProduct);
+productRouter.post("/", authorize, upload.array('image', 10), validate(createProductSchema), createProduct);
+productRouter.post("/:id/rate", authorize, validate(rateProductSchema), rateProduct);
 productRouter.get("/", cacheMiddleware(300), getProducts); // Cache for 5 minutes
 productRouter.get("/shop/:id", cacheMiddleware(300), getProductsByShopId); // Cache for 5 minutes
 productRouter.get("/shop/handle/:username", cacheMiddleware(300), getProductsByShopHandle); // Cache for 5 minutes

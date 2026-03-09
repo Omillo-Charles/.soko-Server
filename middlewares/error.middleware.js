@@ -1,14 +1,22 @@
 import { Prisma } from '@prisma/client';
+import logger from '../utils/logger.js';
+import { AppError } from '../utils/errors.js';
 
 const errorMiddleware = (err, req, res, next) => {
     try {
         let statusCode = err.statusCode || 500;
         let message = err.message || 'Server Error';
+        let status = err.status || 'error';
 
-        console.error(`[Error Middleware] ${err.name}: ${err.message}`);
-        if (err.statusCode) console.error(`Status Code: ${err.statusCode}`);
+        // Log the error using winston
+        logger.error(`${err.name}: ${err.message}`, {
+            url: req.originalUrl,
+            method: req.method,
+            stack: err.stack,
+            statusCode
+        });
 
-        // Prisma error handling (guard against missing classes or non-object RHS)
+        // Prisma error handling
         const KnownReqErr = Prisma?.PrismaClientKnownRequestError;
         const InitErr = Prisma?.PrismaClientInitializationError;
         const ValidationErr = Prisma?.PrismaClientValidationError;
@@ -25,35 +33,26 @@ const errorMiddleware = (err, req, res, next) => {
                 message = 'Resource not found';
                 statusCode = 404;
             }
-        }
-
-        // Prisma initialization error
-        if (isInitErr) {
+        } else if (isInitErr) {
             message = 'Database connection error';
             statusCode = 503;
-        }
-
-        // Prisma validation error
-        if (isValidationErr) {
+        } else if (isValidationErr) {
             message = 'Database validation error';
             statusCode = 400;
         }
 
-        // Fallback: infer from code if classes unavailable
-        if (!isKnownReqErr && !isInitErr && !isValidationErr && typeof err?.code === 'string') {
-            if (err.code === 'P2002') {
-                message = `Duplicate field value entered: ${err.meta?.target || 'unknown field'}`;
-                statusCode = 400;
-            } else if (err.code === 'P2025') {
-                message = 'Resource not found';
-                statusCode = 404;
-            }
+        // Handle Zod errors (if any, will be added later)
+        if (err.name === 'ZodError') {
+            statusCode = 400;
+            message = err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
         }
 
         res.status(statusCode).json({
             success: false,
+            status: status,
             message: message,
-            error: message // Keep error for backward compatibility
+            // Only send stack trace in development
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
         });
     } catch (error) {
         next(error);

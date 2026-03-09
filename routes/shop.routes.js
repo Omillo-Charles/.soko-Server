@@ -21,6 +21,8 @@ import {
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/imagekit.js";
 import cacheMiddleware from "../middlewares/cache.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { registerShopSchema, updateShopSchema } from "../validations/shop.validation.js";
 
 const shopRouter = Router();
 
@@ -28,16 +30,16 @@ shopRouter.get("/", cacheMiddleware(300), getShops);
 shopRouter.post("/", authorize, upload.fields([
     { name: 'avatar', maxCount: 1 },
     { name: 'banner', maxCount: 1 }
-]), createShop);
+]), validate(registerShopSchema), createShop);
 shopRouter.get("/my-shop", authorize, getMyShop);
 shopRouter.get("/:id", cacheMiddleware(600), getShopById);
 shopRouter.get("/handle/:username", cacheMiddleware(600), getShopByHandle);
 shopRouter.get("/check-username/:username", checkUsernameAvailability);
-shopRouter.put("/my-shop", authorize, updateShop);
+shopRouter.put("/my-shop", authorize, validate(updateShopSchema), updateShop);
 shopRouter.put("/my-shop/branding", authorize, upload.fields([
     { name: 'avatar', maxCount: 1 },
     { name: 'banner', maxCount: 1 }
-]), updateShop);
+]), validate(updateShopSchema), updateShop);
 shopRouter.delete("/my-shop", authorize, deleteShop);
 shopRouter.post("/:id/follow", authorize, toggleFollowShop);
 shopRouter.get("/:id/followers", cacheMiddleware(300), getShopFollowers);
