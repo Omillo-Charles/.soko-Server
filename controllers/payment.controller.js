@@ -64,6 +64,11 @@ export const initiateSTKPush = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "Phone number and amount are required" });
         }
 
+        const amountNum = Math.round(Number(amount));
+        if (isNaN(amountNum) || amountNum <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid amount" });
+        }
+
         // Format phone number to 2547XXXXXXXX
         let formattedPhone = phoneNumber.replace(/^(?:\+254|0)/, "254");
         if (!formattedPhone.startsWith("254")) {
@@ -83,7 +88,7 @@ export const initiateSTKPush = async (req, res, next) => {
             Password: password,
             Timestamp: timestamp,
             TransactionType: "CustomerPayBillOnline",
-            Amount: amount,
+            Amount: amountNum,
             PartyA: formattedPhone,
             PartyB: MPESA_SHORTCODE,
             PhoneNumber: formattedPhone,
@@ -101,7 +106,7 @@ export const initiateSTKPush = async (req, res, next) => {
                 data: {
                     merchantRequestId: response.data.MerchantRequestID,
                     checkoutRequestId: response.data.CheckoutRequestID,
-                    amount,
+                    amount: amountNum,
                     phoneNumber: formattedPhone,
                     userId,
                     metadata,
