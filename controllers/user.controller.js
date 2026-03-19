@@ -256,6 +256,26 @@ export const deleteAddress = async (req, res, next) => {
     }
 };
 
+export const getAddresses = async (req, res, next) => {
+    try {
+        const userId = req.user?.id || req.user?._id?.toString();
+        const addresses = await prisma.address.findMany({
+            where: { userId },
+            orderBy: [
+                { isDefault: 'desc' },
+                { createdAt: 'desc' }
+            ]
+        });
+
+        res.status(200).json({
+            success: true,
+            data: addresses
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 export const setDefaultAddress = async (req, res, next) => {
     try {
         const userId = req.user?.id || req.user?._id?.toString();
