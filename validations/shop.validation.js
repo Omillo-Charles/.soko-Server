@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const registerShopSchema = z.object({
   name: z.string().min(3, 'Shop name must be at least 3 characters').max(50, 'Shop name must be at most 50 characters'),
-  username: z.string().min(3, 'Username must be at least 3 characters').regex(/^[a-zA-Z0-0_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  username: z.string().min(3, 'Username must be at least 3 characters').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
   description: z.string().min(10, 'Description must be at least 10 characters'),
   category: z.string().min(1, 'Category is required'),
   address: z.string().min(5, 'Address is required'),

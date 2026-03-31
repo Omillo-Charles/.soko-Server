@@ -2,6 +2,7 @@ import { Router } from "express";
 import { signIn, signOut, signUp, refresh, googleAuthSuccess, githubAuthSuccess, forgotPassword, resetPassword, verifyEmail, changePassword } from "../controllers/auth.controller.js";
 import validate from "../middlewares/validate.middleware.js";
 import { signInSchema, signUpSchema, forgotPasswordSchema, resetPasswordSchema, verifyEmailSchema } from "../validations/auth.validation.js";
+import { changePasswordSchema } from "../validations/user.validation.js";
 import passport from "passport";
 import { FRONTEND_URL } from "../config/env.js";
 import authorize from "../middlewares/auth.middleware.js";
@@ -62,7 +63,7 @@ authRouter.post("/refresh", refresh);
 authRouter.post("/forgot-password", authLimiter, validate(forgotPasswordSchema), forgotPassword);
 authRouter.post("/verify-email", authLimiter, validate(verifyEmailSchema), verifyEmail);
 authRouter.post("/reset-password/:token", authLimiter, validate(resetPasswordSchema), resetPassword);
-authRouter.post("/change-password", authorize, authLimiter, changePassword);
+authRouter.post("/change-password", authorize, authLimiter, validate(changePasswordSchema), changePassword);
 
 // Google Auth Routes
 authRouter.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));

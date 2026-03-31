@@ -8,10 +8,8 @@ const validate = (schema) => (req, res, next) => {
       ...req.query
     };
     
-    // If it's a multipart request (with files), req.body might need preprocessing
-    // But Zod handles the object structure.
-    
-    schema.parse(req.body); 
+    // Parse the merged data to validate body, params, and query
+    schema.parse(data); 
     next();
   } catch (error) {
     next(error);

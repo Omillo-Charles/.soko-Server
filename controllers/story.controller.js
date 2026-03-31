@@ -15,7 +15,7 @@ export const createStory = async (req, res, next) => {
             throw error;
         }
 
-        const { caption, duration } = req.body;
+        const { caption, duration = 24 } = req.body;
         
         let mediaUrl = null;
         let mediaType = "image";
@@ -40,9 +40,9 @@ export const createStory = async (req, res, next) => {
             throw error;
         }
 
-        // Set expiration to 24 hours from now
+        // Set expiration based on duration parameter (in hours)
         const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24);
+        expiresAt.setHours(expiresAt.getHours() + parseInt(duration));
 
         const story = await prisma.updates.create({
             data: {

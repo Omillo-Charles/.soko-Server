@@ -256,3 +256,65 @@ export const getNewOrderSellerEmailTemplate = (order, shop, user) => {
     text: `Hi ${shop.name}, you received a new order #${order._id.toString().slice(-6).toUpperCase()} from ${user.name}!`
   };
 };
+
+export const getOrderStatusUpdateEmailTemplate = (order, user, newStatus) => {
+  const statusMessages = {
+    processing: {
+      title: 'Order is Being Processed',
+      message: 'Great news! Your order is now being prepared by our sellers.',
+      icon: '📦'
+    },
+    shipped: {
+      title: 'Order Has Been Shipped',
+      message: 'Your order is on its way! You should receive it soon.',
+      icon: '🚚'
+    },
+    delivered: {
+      title: 'Order Delivered',
+      message: 'Your order has been delivered. We hope you enjoy your purchase!',
+      icon: '✅'
+    },
+    cancelled: {
+      title: 'Order Cancelled',
+      message: 'Your order has been cancelled. If you did not request this, please contact support.',
+      icon: '❌'
+    }
+  };
+
+  const statusInfo = statusMessages[newStatus] || {
+    title: 'Order Status Updated',
+    message: `Your order status has been updated to: ${newStatus}`,
+    icon: '📋'
+  };
+
+  return {
+    subject: `${statusInfo.icon} ${statusInfo.title} - #${order.id.slice(-6).toUpperCase()}`,
+    html: `
+      <div style="${baseStyle}">
+        <div style="${headerStyle}">
+          <h1>${statusInfo.icon} ${statusInfo.title}</h1>
+        </div>
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>${statusInfo.message}</p>
+        
+        <div style="margin: 30px 0; background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Order ID</div>
+          <div style="font-size: 24px; font-weight: bold; color: #007bff;">#${order.id.slice(-6).toUpperCase()}</div>
+          <div style="font-size: 14px; color: #666; margin-top: 10px;">Status: <strong style="color: #333; text-transform: uppercase;">${newStatus}</strong></div>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${process.env.FRONTEND_URL}/account/orders/${order.id}" style="${buttonStyle}">View Order Details</a>
+        </div>
+
+        <p style="margin-top: 30px;">If you have any questions about your order, feel free to reply to this email.</p>
+        <p>Best regards,<br>The .soko Team</p>
+
+        <div style="${footerStyle}">
+          <p>&copy; ${new Date().getFullYear()} .soko Inc. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    text: `Hi ${user.name}, your order #${order.id.slice(-6).toUpperCase()} status has been updated to ${newStatus}.`
+  };
+};

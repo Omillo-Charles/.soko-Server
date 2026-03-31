@@ -22,4 +22,26 @@ export const authLimiter = rateLimit({
     }
 });
 
+export const createLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 50, // 50 creations per hour
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many creation requests, please try again after an hour'
+    }
+});
+
+export const commentLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 100, // 100 comments per hour
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many comments, please try again after an hour'
+    }
+});
+
 export default limiter;

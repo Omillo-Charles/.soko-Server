@@ -1,6 +1,6 @@
 import prisma from "../database/postgresql.js";
 import { sendEmail } from "../config/nodemailer.js";
-import { getOrderConfirmationEmailTemplate, getNewOrderSellerEmailTemplate } from "../utils/emailTemplates.js";
+import { getOrderConfirmationEmailTemplate, getNewOrderSellerEmailTemplate, getOrderStatusUpdateEmailTemplate } from "../utils/emailTemplates.js";
 import { calculateShippingFee } from "../utils/shipping.js";
 
 export const createOrder = async (req, res, next) => {
@@ -14,14 +14,29 @@ export const createOrder = async (req, res, next) => {
             throw error;
         }
 
+        // Step 1: Validate all products and check stock availability
         let subtotal = 0;
         const shopOrders = {};
+        const stockUpdates = []; // Track stock updates for transaction
 
         for (const item of items) {
-            const product = await prisma.product.findUnique({ where: { id: item.product }, include: { shop: true } });
+            const product = await prisma.product.findUnique({ 
+                where: { id: item.productId }, 
+                include: { shop: true } 
+            });
+            
             if (!product) {
-                const error = new Error(`Product ${item.product} not found`);
+                const error = new Error(`Product ${item.productId} not found`);
                 error.statusCode = 404;
+                throw error;
+            }
+
+            // Check stock availability
+            if (product.stock < item.quantity) {
+                const error = new Error(
+                    `Insufficient stock for "${product.name}". Available: ${product.stock}, Requested: ${item.quantity}`
+                );
+                error.statusCode = 400;
                 throw error;
             }
 
@@ -42,58 +57,93 @@ export const createOrder = async (req, res, next) => {
                 shopId,
                 productId: product.id
             });
+
+            // Track stock update for transaction
+            stockUpdates.push({
+                productId: product.id,
+                quantity: item.quantity
+            });
         }
 
         const shippingFee = calculateShippingFee(subtotal);
         const totalAmount = subtotal + shippingFee;
 
-        const order = await prisma.order.create({
-            data: {
-                userId,
-                subtotal,
-                shippingFee,
-                totalAmount,
-                status: 'pending',
-                paymentStatus: 'pending',
-                paymentMethod: 'Cash on Delivery',
-                shippingName: shippingAddress?.name || '',
-                shippingPhone: shippingAddress?.phone || '',
-                shippingCity: shippingAddress?.city || '',
-                shippingStreet: shippingAddress?.street || ''
+        // Step 2: Create order and update stock in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // Create the order
+            const order = await tx.order.create({
+                data: {
+                    userId,
+                    subtotal,
+                    shippingFee,
+                    totalAmount,
+                    status: 'pending',
+                    paymentStatus: 'pending',
+                    paymentMethod: req.body.paymentMethod || 'Cash on Delivery',
+                    shippingName: shippingAddress?.name || '',
+                    shippingPhone: shippingAddress?.phone || '',
+                    shippingCity: shippingAddress?.city || '',
+                    shippingStreet: shippingAddress?.street || ''
+                }
+            });
+
+            // Create order items
+            for (const shopId in shopOrders) {
+                for (const it of shopOrders[shopId].items) {
+                    await tx.orderItem.create({
+                        data: {
+                            orderId: order.id,
+                            productId: it.productId,
+                            shopId: it.shopId,
+                            name: it.name,
+                            price: it.price,
+                            quantity: it.quantity,
+                            image: it.image,
+                            size: it.size,
+                            color: it.color
+                        }
+                    });
+                }
             }
-        });
-        for (const shopId in shopOrders) {
-            for (const it of shopOrders[shopId].items) {
-                await prisma.orderItem.create({
-                    data: {
-                        orderId: order.id,
-                        productId: it.productId,
-                        shopId: it.shopId,
-                        name: it.name,
-                        price: it.price,
-                        quantity: it.quantity,
-                        image: it.image,
-                        size: it.size,
-                        color: it.color
-                    }
+
+            // Decrement stock for all products
+            for (const update of stockUpdates) {
+                await tx.product.update({
+                    where: { id: update.productId },
+                    data: { stock: { decrement: update.quantity } }
                 });
             }
-        }
 
-        // 3. Send Email to User
+            // Clear user's cart
+            const cart = await tx.cart.findUnique({ where: { userId } });
+            if (cart) {
+                await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+            }
+
+            return order;
+        });
+
+        // Step 3: Send Email to User (outside transaction - non-critical)
         const user = await prisma.user.findUnique({ where: { id: userId } });
         try {
             const orderItems = Object.values(shopOrders).flatMap(s => s.items);
             const emailOrder = {
-                _id: order.id,
-                items: orderItems.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, image: i.image, size: i.size, color: i.color })),
-                totalAmount: order.totalAmount,
-                paymentMethod: order.paymentMethod,
+                _id: result.id,
+                items: orderItems.map(i => ({ 
+                    name: i.name, 
+                    price: i.price, 
+                    quantity: i.quantity, 
+                    image: i.image, 
+                    size: i.size, 
+                    color: i.color 
+                })),
+                totalAmount: result.totalAmount,
+                paymentMethod: result.paymentMethod,
                 shippingAddress: {
-                    name: order.shippingName,
-                    phone: order.shippingPhone,
-                    city: order.shippingCity,
-                    street: order.shippingStreet
+                    name: result.shippingName,
+                    phone: result.shippingPhone,
+                    city: result.shippingCity,
+                    street: result.shippingStreet
                 }
             };
             const template = getOrderConfirmationEmailTemplate(emailOrder, user);
@@ -107,20 +157,28 @@ export const createOrder = async (req, res, next) => {
             console.error('Failed to send order confirmation email to user:', emailError);
         }
 
-        // 4. Send Emails to Shops
+        // Step 4: Send Emails to Shops (outside transaction - non-critical)
         for (const shopId in shopOrders) {
             const { shop } = shopOrders[shopId];
             try {
                 const emailOrder = {
-                    _id: order.id,
-                    items: shopOrders[shopId].items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, image: i.image, size: i.size, color: i.color })),
-                    totalAmount: order.totalAmount,
-                    paymentMethod: order.paymentMethod,
+                    _id: result.id,
+                    items: shopOrders[shopId].items.map(i => ({ 
+                        name: i.name, 
+                        price: i.price, 
+                        quantity: i.quantity, 
+                        image: i.image, 
+                        size: i.size, 
+                        color: i.color,
+                        shop: { toString: () => shopId }
+                    })),
+                    totalAmount: result.totalAmount,
+                    paymentMethod: result.paymentMethod,
                     shippingAddress: {
-                        name: order.shippingName,
-                        phone: order.shippingPhone,
-                        city: order.shippingCity,
-                        street: order.shippingStreet
+                        name: result.shippingName,
+                        phone: result.shippingPhone,
+                        city: result.shippingCity,
+                        street: result.shippingStreet
                     }
                 };
                 const template = getNewOrderSellerEmailTemplate(emailOrder, shop, user);
@@ -135,16 +193,10 @@ export const createOrder = async (req, res, next) => {
             }
         }
 
-        // 5. Clear user's cart
-        const cart = await prisma.cart.findUnique({ where: { userId } });
-        if (cart) {
-            await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-        }
-
         res.status(201).json({
             success: true,
             message: "Order placed successfully",
-            data: order
+            data: result
         });
     } catch (error) {
         next(error);
@@ -295,7 +347,14 @@ export const updateOrderStatus = async (req, res, next) => {
             throw error;
         }
 
-        const order = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+        const order = await prisma.order.findUnique({ 
+            where: { id }, 
+            include: { 
+                items: true,
+                user: true 
+            } 
+        });
+        
         if (!order) {
             const error = new Error(`Order with ID ${id} not found`);
             error.statusCode = 404;
@@ -309,7 +368,56 @@ export const updateOrderStatus = async (req, res, next) => {
             throw error;
         }
 
-        const updated = await prisma.order.update({ where: { id }, data: { status } });
+        // If order is being cancelled, restore stock
+        const previousStatus = order.status;
+        const isCancelling = status === 'cancelled' && previousStatus !== 'cancelled';
+
+        let updated;
+        if (isCancelling) {
+            // Use transaction to restore stock atomically
+            updated = await prisma.$transaction(async (tx) => {
+                // Update order status
+                const updatedOrder = await tx.order.update({ 
+                    where: { id }, 
+                    data: { status },
+                    include: { user: true }
+                });
+
+                // Restore stock for all items in the order
+                for (const item of order.items) {
+                    await tx.product.update({
+                        where: { id: item.productId },
+                        data: { stock: { increment: item.quantity } }
+                    });
+                }
+
+                return updatedOrder;
+            });
+
+            console.log(`Order ${id} cancelled. Stock restored for ${order.items.length} items.`);
+        } else {
+            // Normal status update without stock changes
+            updated = await prisma.order.update({ 
+                where: { id }, 
+                data: { status },
+                include: { user: true }
+            });
+        }
+
+        // Send email notification to buyer about status change
+        try {
+            const template = getOrderStatusUpdateEmailTemplate(updated, order.user, status);
+            await sendEmail({
+                to: order.user.email,
+                subject: template.subject,
+                text: template.text,
+                html: template.html
+            });
+            console.log(`Order status update email sent to ${order.user.email}`);
+        } catch (emailError) {
+            console.error('Failed to send order status update email:', emailError);
+            // Don't fail the request if email fails
+        }
 
         res.status(200).json({
             success: true,

@@ -14,6 +14,8 @@ import {
     setDefaultAddress
 } from "../controllers/user.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
+import validate from "../middlewares/validate.middleware.js";
+import { updateAccountTypeSchema, addAddressSchema, updateAddressSchema } from "../validations/user.validation.js";
 
 const userRouter = Router();
 
@@ -24,12 +26,12 @@ userRouter.get("/following/:id", authorize, getUserFollowing);
 userRouter.get("/followers/:id", authorize, getUserFollowers);
 // Address routes
 userRouter.get("/addresses", authorize, getAddresses);
-userRouter.post("/addresses", authorize, addAddress);
-userRouter.put("/addresses/:addressId", authorize, updateAddress);
+userRouter.post("/addresses", authorize, validate(addAddressSchema), addAddress);
+userRouter.put("/addresses/:addressId", authorize, validate(updateAddressSchema), updateAddress);
 userRouter.delete("/addresses/:addressId", authorize, deleteAddress);
 userRouter.put("/addresses/:addressId/set-default", authorize, setDefaultAddress);
 
 userRouter.get("/:id", authorize, getUser);
-userRouter.put("/update-account-type", authorize, updateAccountType);
+userRouter.put("/update-account-type", authorize, validate(updateAccountTypeSchema), updateAccountType);
 
 export default userRouter;

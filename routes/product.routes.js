@@ -5,6 +5,8 @@ import { upload } from "../config/imagekit.js";
 import cacheMiddleware from "../middlewares/cache.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
 import { createProductSchema, rateProductSchema, updateProductSchema } from "../validations/product.validation.js";
+import { createLimiter } from "../middlewares/limit.middleware.js";
+import { validateImageUpload } from "../middlewares/fileValidation.middleware.js";
 
 const productRouter = Router();
 
@@ -23,14 +25,14 @@ productRouter.post("/track", (req, res, next) => {
     next();
 }, trackActivity);
 
-productRouter.post("/", authorize, upload.array('image', 10), validate(createProductSchema), createProduct);
-productRouter.post("/:id/rate", authorize, validate(rateProductSchema), rateProduct);
+productRouter.post("/", authorize, createLimiter, upload.array('image', 10), validateImageUpload, validate(createProductSchema), createProduct);
+productRouter.post("/:id/rate", authorize, createLimiter, validate(rateProductSchema), rateProduct);
 productRouter.get("/", cacheMiddleware(300), getProducts); // Cache for 5 minutes
 productRouter.get("/shop/:id", cacheMiddleware(300), getProductsByShopId); // Cache for 5 minutes
 productRouter.get("/shop/handle/:username", cacheMiddleware(300), getProductsByShopHandle); // Cache for 5 minutes
 productRouter.get("/my-products", authorize, getMyProducts);
 productRouter.get("/:id", cacheMiddleware(600), getProductById); // Cache for 10 minutes
-productRouter.put("/:id", authorize, upload.array('image', 10), updateProduct);
+productRouter.put("/:id", authorize, upload.array('image', 10), validateImageUpload, validate(updateProductSchema), updateProduct);
 productRouter.delete("/:id", authorize, deleteProduct);
 
 export default productRouter;
