@@ -294,7 +294,7 @@ export const createProduct = async (req, res, next) => {
 
 export const getProducts = async (req, res, next) => {
     try {
-        const { q, cat, shop, minPrice, maxPrice, limit, page = 1, following } = req.query;
+        const { q, cat, shop, minPrice, maxPrice, minRating, sortBy = 'newest', limit, page = 1, following } = req.query;
         const userId = req.user?.id || req.user?._id?.toString();
         const where = {};
 
@@ -345,6 +345,34 @@ export const getProducts = async (req, res, next) => {
             if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
+        if (minRating) {
+            where.rating = { gte: parseFloat(minRating) };
+        }
+
+        // Determine sort order
+        let orderBy;
+        switch (sortBy) {
+            case 'price-asc':
+                orderBy = { price: 'asc' };
+                break;
+            case 'price-desc':
+                orderBy = { price: 'desc' };
+                break;
+            case 'rating':
+                orderBy = { rating: 'desc' };
+                break;
+            case 'popular':
+                orderBy = { likesCount: 'desc' };
+                break;
+            case 'oldest':
+                orderBy = { createdAt: 'asc' };
+                break;
+            case 'newest':
+            default:
+                orderBy = { createdAt: 'desc' };
+                break;
+        }
+
         const limitValue = parseInt(limit);
         const pageValue = parseInt(page) || 1;
         const skipValue = (pageValue - 1) * (limitValue > 0 ? limitValue : 100);
@@ -355,7 +383,7 @@ export const getProducts = async (req, res, next) => {
         if (limitValue > 0) {
             products = await prisma.product.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 take: limitValue,
                 skip: skipValue,
                 include: commonInclude
@@ -363,13 +391,13 @@ export const getProducts = async (req, res, next) => {
         } else if (limitValue === -1) {
             products = await prisma.product.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 include: commonInclude
             });
         } else {
             products = await prisma.product.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 take: 100,
                 skip: skipValue,
                 include: commonInclude
@@ -407,7 +435,7 @@ export const getProducts = async (req, res, next) => {
 export const getProductsByShopId = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { minPrice, maxPrice, limit, page = 1 } = req.query;
+        const { minPrice, maxPrice, minRating, sortBy = 'newest', limit, page = 1 } = req.query;
         
         const limitValue = parseInt(limit);
         const pageValue = parseInt(page) || 1;
@@ -421,21 +449,49 @@ export const getProductsByShopId = async (req, res, next) => {
             if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
+        if (minRating) {
+            where.rating = { gte: parseFloat(minRating) };
+        }
+
+        // Determine sort order
+        let orderBy;
+        switch (sortBy) {
+            case 'price-asc':
+                orderBy = { price: 'asc' };
+                break;
+            case 'price-desc':
+                orderBy = { price: 'desc' };
+                break;
+            case 'rating':
+                orderBy = { rating: 'desc' };
+                break;
+            case 'popular':
+                orderBy = { likesCount: 'desc' };
+                break;
+            case 'oldest':
+                orderBy = { createdAt: 'asc' };
+                break;
+            case 'newest':
+            default:
+                orderBy = { createdAt: 'desc' };
+                break;
+        }
+
         const include = { shop: { select: { id: true, name: true, username: true, avatar: true, isVerified: true } } };
         let products;
 
         if (limitValue > 0) {
             products = await prisma.product.findMany({
                 where,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 take: limitValue,
                 skip: skipValue,
                 include
             });
         } else if (limitValue === -1) {
-            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, include });
+            products = await prisma.product.findMany({ where, orderBy, include });
         } else {
-            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100, skip: skipValue, include });
+            products = await prisma.product.findMany({ where, orderBy, take: 100, skip: skipValue, include });
         }
 
         const total = await prisma.product.count({ where });
@@ -469,7 +525,7 @@ export const getProductsByShopId = async (req, res, next) => {
 export const getProductsByShopHandle = async (req, res, next) => {
     try {
         const { username } = req.params;
-        const { minPrice, maxPrice, limit, page = 1 } = req.query;
+        const { minPrice, maxPrice, minRating, sortBy = 'newest', limit, page = 1 } = req.query;
 
         const shop = await prisma.shop.findUnique({ where: { username: username.toLowerCase() } });
         if (!shop) {
@@ -490,15 +546,43 @@ export const getProductsByShopHandle = async (req, res, next) => {
             if (maxPrice) where.price.lte = parseFloat(maxPrice);
         }
 
+        if (minRating) {
+            where.rating = { gte: parseFloat(minRating) };
+        }
+
+        // Determine sort order
+        let orderBy;
+        switch (sortBy) {
+            case 'price-asc':
+                orderBy = { price: 'asc' };
+                break;
+            case 'price-desc':
+                orderBy = { price: 'desc' };
+                break;
+            case 'rating':
+                orderBy = { rating: 'desc' };
+                break;
+            case 'popular':
+                orderBy = { likesCount: 'desc' };
+                break;
+            case 'oldest':
+                orderBy = { createdAt: 'asc' };
+                break;
+            case 'newest':
+            default:
+                orderBy = { createdAt: 'desc' };
+                break;
+        }
+
         const include = { shop: { select: { id: true, name: true, username: true, avatar: true, isVerified: true } } };
         let products;
 
         if (limitValue > 0) {
-            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: limitValue, skip: skipValue, include });
+            products = await prisma.product.findMany({ where, orderBy, take: limitValue, skip: skipValue, include });
         } else if (limitValue === -1) {
-            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, include });
+            products = await prisma.product.findMany({ where, orderBy, include });
         } else {
-            products = await prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, take: 100, skip: skipValue, include });
+            products = await prisma.product.findMany({ where, orderBy, take: 100, skip: skipValue, include });
         }
 
         const total = await prisma.product.count({ where });

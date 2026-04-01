@@ -43,15 +43,32 @@ export const createComment = async (req, res, next) => {
 export const getProductComments = async (req, res, next) => {
     try {
         const { productId } = req.params;
+        const { limit, page = 1 } = req.query;
+        const limitValue = parseInt(limit) || 20;
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * limitValue;
+
+        const where = { productId };
+
         const comments = await prisma.comment.findMany({
-            where: { productId },
+            where,
             orderBy: { createdAt: 'desc' },
-            include: { user: { select: { name: true, email: true } } }
+            include: { user: { select: { name: true, email: true } } },
+            take: limitValue,
+            skip: skipValue
         });
+
+        const total = await prisma.comment.count({ where });
 
         res.status(200).json({
             success: true,
-            data: comments
+            data: comments,
+            pagination: {
+                total,
+                page: pageValue,
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
+            }
         });
     } catch (error) {
         next(error);

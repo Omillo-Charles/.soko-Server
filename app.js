@@ -8,6 +8,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
 import limiter from "./middlewares/limit.middleware.js";
+import requestIdMiddleware from "./middlewares/requestId.middleware.js";
 import { PORT, FRONTEND_URL } from "./config/env.js";
 import authRouter from "./routes/auth.routes.js";
 import swaggerUi from 'swagger-ui-express';
@@ -23,11 +24,16 @@ import commentRouter from "./routes/comment.routes.js";
 import orderRouter from "./routes/order.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
 import storyRouter from "./routes/story.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import passport from "./config/passport.js";
 import { connectPostgres } from "./database/postgresql.js";
+import { initializeCleanupJobs } from "./jobs/cleanup.jobs.js";
 
 const app = express();
+
+// Request ID middleware - must be first to track all requests
+app.use(requestIdMiddleware);
 
 app.use(limiter);
 
@@ -62,6 +68,7 @@ app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/stories", storyRouter);
+app.use("/api/v1/admin", adminRouter);
 
 app.get("/", (req, res) => res.redirect("/api-docs"));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -80,6 +87,9 @@ app.use(errorMiddleware);
 app.listen(PORT, async ()=>{
   logger.info(`The .soko Backend API is running on http://localhost:${PORT}`);
   connectPostgres().catch(err => logger.error('PostgreSQL connection error:', { message: err.message }));
+  
+  // Initialize cleanup jobs after database connection
+  initializeCleanupJobs();
 });
 
 export default app;

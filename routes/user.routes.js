@@ -11,15 +11,21 @@ import {
     addAddress,
     updateAddress,
     deleteAddress,
-    setDefaultAddress
+    setDefaultAddress,
+    updateProfile,
+    changePassword
 } from "../controllers/user.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
-import { updateAccountTypeSchema, addAddressSchema, updateAddressSchema } from "../validations/user.validation.js";
+import { updateAccountTypeSchema, addAddressSchema, updateAddressSchema, updateProfileSchema, changePasswordSchema } from "../validations/user.validation.js";
+import { upload } from "../config/imagekit.js";
+import { validateImageUpload } from "../middlewares/fileValidation.middleware.js";
 
 const userRouter = Router();
 
 userRouter.get("/me", authorize, getCurrentUser);
+userRouter.put("/me", authorize, upload.single('avatar'), validateImageUpload, validate(updateProfileSchema), updateProfile);
+userRouter.put("/me/password", authorize, validate(changePasswordSchema), changePassword);
 userRouter.delete("/me", authorize, deleteAccount);
 userRouter.get("/", authorize, getUsers);
 userRouter.get("/following/:id", authorize, getUserFollowing);

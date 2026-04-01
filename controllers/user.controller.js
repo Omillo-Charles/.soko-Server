@@ -1,4 +1,7 @@
 import prisma from "../database/postgresql.js";
+import bcrypt from "bcryptjs";
+import { uploadToImageKit } from "../config/imagekit.js";
+import logger from "../utils/logger.js";
 
 export const deleteAccount = async (req, res, next) => {
     try {
@@ -62,6 +65,98 @@ export const getCurrentUser = async (req, res, next) => {
         next(error);
     }
 }
+
+export const updateProfile = async (req, res, next) => {
+    try {
+        const userId = req.user?.id || req.user?._id?.toString();
+        const { name } = req.body;
+        
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const updates = {};
+        if (name) updates.name = name;
+
+        // Handle avatar upload if file is provided
+        if (req.file) {
+            try {
+                const result = await uploadToImageKit(req.file, "duuka/avatars");
+                updates.avatar = result.url;
+            } catch (uploadError) {
+                logger.error("Avatar upload failed:", uploadError);
+                const error = new Error('Failed to upload avatar');
+                error.statusCode = 500;
+                throw error;
+            }
+        } else if (req.body.avatar) {
+            // If avatar URL is provided directly
+            updates.avatar = req.body.avatar;
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: updates
+        });
+
+        const { password, ...safe } = updatedUser;
+
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully",
+            data: safe
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const changePassword = async (req, res, next) => {
+    try {
+        const userId = req.user?.id || req.user?._id?.toString();
+        const { currentPassword, newPassword } = req.body;
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            const error = new Error('User not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // Check if user has a password (not OAuth-only account)
+        if (!user.password) {
+            const error = new Error('Cannot change password for OAuth accounts');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            const error = new Error('Current password is incorrect');
+            error.statusCode = 401;
+            throw error;
+        }
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Password changed successfully"
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const getUsers = async (req, res, next) => {
     try {

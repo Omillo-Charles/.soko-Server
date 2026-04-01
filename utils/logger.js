@@ -1,11 +1,18 @@
 import winston from 'winston';
 
+// Custom format to include requestId if available
+const customFormat = winston.format((info) => {
+  // If requestId is in the info object, keep it
+  return info;
+});
+
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
     winston.format.splat(),
+    customFormat(),
     winston.format.json()
   ),
   defaultMeta: { service: 'dotSokoAPI' },

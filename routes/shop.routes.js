@@ -16,7 +16,8 @@ import {
     getShopReviewsByHandle,
     getShopFollowersByHandle,
     getShopFollowingByHandle,
-    rateShopByHandle
+    rateShopByHandle,
+    getSellerAnalytics
 } from "../controllers/shop.controller.js";
 import authorize from "../middlewares/auth.middleware.js";
 import { upload } from "../config/imagekit.js";
@@ -35,6 +36,7 @@ shopRouter.post("/", authorize, createLimiter, upload.fields([
 ]), validateImageUpload, validate(registerShopSchema), createShop);
 // Static/prefix routes MUST come before the /:id wildcard
 shopRouter.get("/my-shop", authorize, getMyShop);
+shopRouter.get("/my-shop/analytics", authorize, getSellerAnalytics);
 shopRouter.put("/my-shop", authorize, validate(updateShopSchema), updateShop);
 shopRouter.put("/my-shop/branding", authorize, upload.fields([
     { name: 'avatar', maxCount: 1 },

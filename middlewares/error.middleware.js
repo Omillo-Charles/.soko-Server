@@ -16,38 +16,64 @@ const errorMiddleware = (err, req, res, next) => {
                 case 'P2002': // Unique constraint violation
                     statusCode = 400;
                     const target = err.meta?.target || 'field';
-                    message = `Constraint violation: A record with this ${target} already exists.`;
+                    const fieldName = Array.isArray(target) ? target[0] : target;
+                    
+                    // User-friendly messages for common fields
+                    if (fieldName.includes('email')) {
+                        message = 'This email address is already registered. Please use a different email or try logging in.';
+                    } else if (fieldName.includes('username')) {
+                        message = 'This username is already taken. Please choose a different username.';
+                    } else if (fieldName.includes('phone')) {
+                        message = 'This phone number is already registered.';
+                    } else {
+                        message = `This ${fieldName} is already in use. Please use a different value.`;
+                    }
                     break;
                 case 'P2025': // Not found
                     statusCode = 404;
-                    message = err.meta?.cause || 'Resource not found';
+                    message = 'The requested item was not found. It may have been deleted or moved.';
                     break;
                 case 'P2003': // Foreign key constraint violation
                     statusCode = 400;
-                    message = 'Constraint violation: This operation would break database integrity.';
+                    message = 'Invalid reference. Please ensure all related items exist.';
                     break;
                 default:
                     statusCode = 500;
-                    message = `Database Error: ${err.code}`;
+                    message = 'A database error occurred. Please try again later.';
             }
         } else if (err instanceof Prisma.PrismaClientValidationError) {
             statusCode = 400;
             status = 'fail';
-            message = 'Information provided is invalid for this resource.';
+            message = 'Invalid details provided. Please check your input and try again.';
         } else if (err instanceof Prisma.PrismaClientInitializationError) {
             statusCode = 503;
-            message = 'Service temporarily unavailable (Database connection)';
+            message = 'Service temporarily unavailable. Please try again in a few moments.';
         }
 
         // Handle Zod Validation Errors
         if (err.name === 'ZodError') {
             statusCode = 400;
             status = 'fail';
-            message = 'Validation failed';
-            errors = err.errors.map(e => ({
-                path: e.path.join('.'),
+            
+            // Extract validation errors
+            const validationErrors = err.errors && Array.isArray(err.errors) ? err.errors.map(e => ({
+                field: e.path.join('.'),
                 message: e.message
-            }));
+            })) : [];
+
+            // Create user-friendly message
+            if (validationErrors.length > 0) {
+                // Get the first error for the main message
+                const firstError = validationErrors[0];
+                message = firstError.message;
+                
+                // If multiple errors, provide them in the errors array
+                if (validationErrors.length > 1) {
+                    errors = validationErrors;
+                }
+            } else {
+                message = 'Invalid details provided. Please check your input and try again.';
+            }
         }
 
         // Handle JWT Errors
@@ -63,7 +89,7 @@ const errorMiddleware = (err, req, res, next) => {
 
         // Log the error with full context
         logger.error(`[${req.method}] ${req.originalUrl} - ${statusCode} - ${err.name}: ${err.message}`, {
-            requestId: req.headers['x-request-id'],
+            requestId: req.requestId || req.headers['x-request-id'],
             ip: req.ip,
             userAgent: req.headers['user-agent'],
             stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
@@ -71,15 +97,30 @@ const errorMiddleware = (err, req, res, next) => {
             statusCode
         });
 
-        // Send response
-        return res.status(statusCode).json({
+        // Build user-friendly response
+        const response = {
             success: false,
-            status: status,
             message: message,
-            ...(errors && { errors }),
-            // Only send stack trace in development
-            ...(process.env.NODE_ENV === 'development' && { stack: err.stack, details: err })
-        });
+        };
+
+        // Add validation errors if present (for forms to show field-specific errors)
+        if (errors && Array.isArray(errors) && errors.length > 0) {
+            response.errors = errors;
+        }
+
+        // Add request ID for support/debugging
+        if (req.requestId) {
+            response.requestId = req.requestId;
+        }
+
+        // Only include technical details in development
+        if (process.env.NODE_ENV === 'development') {
+            response.status = status;
+            response.stack = err.stack;
+            response.details = err;
+        }
+
+        return res.status(statusCode).json(response);
     } catch (fatalError) {
         // Fallback for when the error middleware itself fails
         console.error('CRITICAL: Error in error middleware:', fatalError);

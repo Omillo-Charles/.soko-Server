@@ -7,6 +7,8 @@ import {
     MPESA_ENVIRONMENT
 } from "../config/env.js";
 import { getMpesaAccessToken, getMpesaTimestamp } from "../utils/mpesa.js";
+import { sendEmail } from "../config/nodemailer.js";
+import { getOrderStatusUpdateEmailTemplate } from "../utils/emailTemplates.js";
 // Prisma model: MpesaTransaction
 
 // Helper to activate premium status
@@ -46,6 +48,69 @@ const activatePremium = async (userId, planName, isAnnual) => {
         }
     } catch (error) {
         console.error("Error in activatePremium:", error);
+        return false;
+    }
+};
+
+// Helper to process order payment
+const processOrderPayment = async (transaction) => {
+    try {
+        const orderId = transaction.metadata?.orderId;
+        if (!orderId) {
+            console.log('No orderId in transaction metadata');
+            return false;
+        }
+
+        console.log(`Processing payment for order ${orderId}`);
+
+        const order = await prisma.order.findUnique({ 
+            where: { id: orderId },
+            include: { user: true }
+        });
+
+        if (!order) {
+            console.error(`Order ${orderId} not found`);
+            return false;
+        }
+
+        // Verify payment amount matches order total
+        if (Math.abs(transaction.amount - order.totalAmount) > 1) {
+            console.error(`Payment amount mismatch. Expected: ${order.totalAmount}, Received: ${transaction.amount}`);
+            return false;
+        }
+
+        // Update order payment status
+        await prisma.order.update({
+            where: { id: orderId },
+            data: { 
+                paymentStatus: 'paid',
+                paymentMethod: 'M-Pesa'
+            }
+        });
+
+        console.log(`Order ${orderId} payment status updated to 'paid'`);
+
+        // Send email notification to buyer
+        try {
+            const emailOrder = {
+                id: order.id,
+                _id: order.id
+            };
+            const template = getOrderStatusUpdateEmailTemplate(emailOrder, order.user, 'paid');
+            await sendEmail({
+                to: order.user.email,
+                subject: template.subject,
+                text: template.text,
+                html: template.html
+            });
+            console.log(`Payment confirmation email sent to ${order.user.email}`);
+        } catch (emailError) {
+            console.error('Failed to send payment confirmation email:', emailError);
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Error in processOrderPayment:", error);
         return false;
     }
 };
@@ -192,12 +257,19 @@ export const stkCallback = async (req, res) => {
                 }
             });
 
+            // Handle different payment types
             if (updatedTx.metadata?.type === "premium_upgrade") {
                 try {
                     const { planName, isAnnual } = updatedTx.metadata;
                     await activatePremium(updatedTx.userId || undefined, planName, isAnnual);
                 } catch (activationError) {
                     console.error("Premium Activation Error:", activationError);
+                }
+            } else if (updatedTx.metadata?.type === "order_payment") {
+                try {
+                    await processOrderPayment(updatedTx);
+                } catch (orderError) {
+                    console.error("Order Payment Processing Error:", orderError);
                 }
             }
             
@@ -277,9 +349,12 @@ export const getTransactionStatus = async (req, res, next) => {
                         data: { status: 'completed', transactionDate: new Date() }
                     });
 
+                    // Handle different payment types
                     if (finalTx.metadata?.type === "premium_upgrade") {
                         const { planName, isAnnual } = finalTx.metadata;
                         await activatePremium(finalTx.userId || undefined, planName, isAnnual);
+                    } else if (finalTx.metadata?.type === "order_payment") {
+                        await processOrderPayment(finalTx);
                     }
                 } else {
                     await prisma.mpesaTransaction.update({
@@ -308,6 +383,107 @@ export const getTransactionStatus = async (req, res, next) => {
             status: transaction.status,
             resultCode: transaction.resultCode,
             resultDesc: transaction.resultDesc
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const linkPaymentToOrder = async (req, res, next) => {
+    try {
+        const { orderId, checkoutRequestId } = req.body;
+        const userId = req.user?.id || req.user?._id?.toString();
+
+        // Verify order belongs to user
+        const order = await prisma.order.findUnique({ 
+            where: { id: orderId },
+            include: { user: true }
+        });
+
+        if (!order) {
+            const error = new Error('Order not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (order.userId !== userId) {
+            const error = new Error('Unauthorized: Order does not belong to you');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Verify transaction exists and belongs to user
+        const transaction = await prisma.mpesaTransaction.findUnique({ 
+            where: { checkoutRequestId } 
+        });
+
+        if (!transaction) {
+            const error = new Error('Transaction not found');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (transaction.userId !== userId) {
+            const error = new Error('Unauthorized: Transaction does not belong to you');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        // Verify amount matches
+        if (Math.abs(transaction.amount - order.totalAmount) > 1) {
+            const error = new Error(
+                `Payment amount mismatch. Order total: KES ${order.totalAmount}, Payment: KES ${transaction.amount}`
+            );
+            error.statusCode = 400;
+            throw error;
+        }
+
+        // Update transaction metadata with orderId
+        const updatedTransaction = await prisma.mpesaTransaction.update({
+            where: { id: transaction.id },
+            data: {
+                metadata: {
+                    ...transaction.metadata,
+                    type: 'order_payment',
+                    orderId: orderId
+                }
+            }
+        });
+
+        // If payment is already completed, update order immediately
+        if (transaction.status === 'completed') {
+            await prisma.order.update({
+                where: { id: orderId },
+                data: { 
+                    paymentStatus: 'paid',
+                    paymentMethod: 'M-Pesa'
+                }
+            });
+
+            // Send payment confirmation email
+            try {
+                const template = getOrderStatusUpdateEmailTemplate(order, order.user, 'paid');
+                await sendEmail({
+                    to: order.user.email,
+                    subject: template.subject,
+                    text: template.text,
+                    html: template.html
+                });
+            } catch (emailError) {
+                console.error('Failed to send payment confirmation email:', emailError);
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: transaction.status === 'completed' 
+                ? 'Payment linked and order updated' 
+                : 'Payment linked. Order will be updated when payment completes',
+            data: {
+                transaction: updatedTransaction,
+                order: await prisma.order.findUnique({ where: { id: orderId } })
+            }
         });
     } catch (error) {
         next(error);

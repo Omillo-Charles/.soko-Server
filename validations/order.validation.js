@@ -6,17 +6,14 @@ const orderItemSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   price: z.number().positive('Price must be positive'),
   quantity: z.number().int().positive('Quantity must be a positive integer'),
-  image: z.string().url().optional(),
+  image: z.string().optional(),
   size: z.string().optional(),
   color: z.string().optional(),
 });
 
 export const createOrderSchema = z.object({
   items: z.array(orderItemSchema).min(1, 'Order must contain at least one item'),
-  subtotal: z.number().min(0, 'Subtotal cannot be negative'),
-  totalAmount: z.number().positive('Total amount must be positive'),
-  shippingFee: z.number().min(0, 'Shipping fee cannot be negative').default(0),
-  paymentMethod: z.string().min(1, 'Payment method is required'),
+  paymentMethod: z.string().optional().default('Cash on Delivery'),
   shippingAddress: z.object({
     name: z.string().min(2, 'Name is required'),
     phone: z.string().min(10, 'Valid phone number is required'),

@@ -78,7 +78,7 @@ export const createOrder = async (req, res, next) => {
                     shippingFee,
                     totalAmount,
                     status: 'pending',
-                    paymentStatus: 'pending',
+                    paymentStatus: req.body.paymentMethod === 'M-Pesa' ? 'pending' : 'pending',
                     paymentMethod: req.body.paymentMethod || 'Cash on Delivery',
                     shippingName: shippingAddress?.name || '',
                     shippingPhone: shippingAddress?.phone || '',
@@ -205,10 +205,22 @@ export const createOrder = async (req, res, next) => {
 
 export const getMyOrders = async (req, res, next) => {
     try {
+        const { limit, page = 1, status } = req.query;
+        const limitValue = parseInt(limit) || 20;
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * limitValue;
+
+        const where = { userId: req.user?.id || req.user?._id?.toString() };
+        if (status && status !== 'all') {
+            where.status = status;
+        }
+
         const orders = await prisma.order.findMany({
-            where: { userId: req.user?.id || req.user?._id?.toString() },
+            where,
             include: { items: true },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: limitValue,
+            skip: skipValue
         });
 
         const mappedOrders = orders.map(order => ({
@@ -221,9 +233,17 @@ export const getMyOrders = async (req, res, next) => {
             }
         }));
 
+        const total = await prisma.order.count({ where });
+
         res.status(200).json({
             success: true,
-            data: mappedOrders
+            data: mappedOrders,
+            pagination: {
+                total,
+                page: pageValue,
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
+            }
         });
     } catch (error) {
         next(error);
@@ -257,21 +277,39 @@ export const getOrderById = async (req, res, next) => {
 
 export const getSellerOrders = async (req, res, next) => {
     try {
+        const { limit, page = 1, status } = req.query;
+        const limitValue = parseInt(limit) || 20;
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * limitValue;
+
         const shop = await prisma.shop.findUnique({ where: { ownerId: req.user?.id || req.user?._id?.toString() } });
         if (!shop) {
             return res.status(200).json({
                 success: true,
-                data: []
+                data: [],
+                pagination: {
+                    total: 0,
+                    page: 1,
+                    limit: limitValue,
+                    pages: 0
+                }
             });
         }
 
+        const where = { items: { some: { shopId: shop.id } } };
+        if (status && status !== 'all') {
+            where.status = status;
+        }
+
         const orders = await prisma.order.findMany({
-            where: { items: { some: { shopId: shop.id } } },
+            where,
             orderBy: { createdAt: 'desc' },
             include: { 
                 user: { select: { name: true, email: true } },
                 items: { where: { shopId: shop.id } }
-            }
+            },
+            take: limitValue,
+            skip: skipValue
         });
 
         const mappedOrders = orders.map(order => ({
@@ -284,9 +322,17 @@ export const getSellerOrders = async (req, res, next) => {
             }
         }));
 
+        const total = await prisma.order.count({ where });
+
         res.status(200).json({
             success: true,
-            data: mappedOrders
+            data: mappedOrders,
+            pagination: {
+                total,
+                page: pageValue,
+                limit: limitValue,
+                pages: Math.ceil(total / limitValue)
+            }
         });
     } catch (error) {
         next(error);

@@ -17,5 +17,11 @@ export const stkPushSchema = z.object({
     type: z.string().optional(),
     planName: z.string().optional(),
     isAnnual: z.boolean().optional(),
+    orderId: z.string().optional(),
   }).optional(),
+});
+
+export const linkPaymentToOrderSchema = z.object({
+  orderId: z.string().min(1, 'Order ID is required'),
+  checkoutRequestId: z.string().min(1, 'Checkout Request ID is required'),
 });

@@ -278,6 +278,11 @@ export const getOrderStatusUpdateEmailTemplate = (order, user, newStatus) => {
       title: 'Order Cancelled',
       message: 'Your order has been cancelled. If you did not request this, please contact support.',
       icon: '❌'
+    },
+    paid: {
+      title: 'Payment Confirmed',
+      message: 'Your payment has been received and confirmed. Your order is now being processed.',
+      icon: '💳'
     }
   };
 
