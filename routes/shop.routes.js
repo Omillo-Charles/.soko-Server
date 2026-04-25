@@ -29,7 +29,7 @@ import { validateImageUpload } from "../middlewares/fileValidation.middleware.js
 
 const shopRouter = Router();
 
-shopRouter.get("/", cacheMiddleware(300), getShops);
+shopRouter.get("/", getShops);
 shopRouter.post("/", authorize, createLimiter, upload.fields([
     { name: 'avatar', maxCount: 1 },
     { name: 'banner', maxCount: 1 }

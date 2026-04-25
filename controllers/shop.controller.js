@@ -379,23 +379,22 @@ export const getShops = async (req, res, next) => {
         } catch (e) {
             userId = null;
         }
+
+        // Fetch followed shop IDs in one go to avoid N+1 queries
+        let followedShopIds = new Set();
+        if (userId) {
+            const followed = await prisma.shop.findMany({
+                where: { followers: { some: { id: userId } } },
+                select: { id: true }
+            });
+            followedShopIds = new Set(followed.map(s => s.id));
+        }
         
-        const shopsWithCounts = await Promise.all(shops.map(async (shop) => {
-            let isFollowing = false;
-            if (userId) {
-                const rel = await prisma.shop.findFirst({ 
-                    where: { id: shop.id, followers: { some: { id: userId } } }, 
-                    select: { id: true } 
-                });
-                isFollowing = Boolean(rel);
-            }
-            
-            return {
-                ...shop,
-                productsCount: shop._count?.products || 0,
-                followersCount: shop._count?.followers || 0,
-                isFollowing
-            };
+        const shopsWithCounts = shops.map((shop) => ({
+            ...shop,
+            productsCount: shop._count?.products || 0,
+            followersCount: shop._count?.followers || 0,
+            isFollowing: followedShopIds.has(shop.id)
         }));
 
         const total = await prisma.shop.count({ where });
