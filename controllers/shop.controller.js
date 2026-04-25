@@ -312,7 +312,6 @@ export const getShops = async (req, res, next) => {
 
         const where = {};
         
-        // Text search in shop name, description, or username
         if (q) {
             where.OR = [
                 { name: { contains: q, mode: 'insensitive' } },
@@ -333,7 +332,6 @@ export const getShops = async (req, res, next) => {
             where.rating = { gte: parseFloat(minRating) };
         }
 
-        // Determine sort order
         let orderBy;
         switch (sortBy) {
             case 'rating':
@@ -354,11 +352,20 @@ export const getShops = async (req, res, next) => {
                 break;
         }
 
+        // Fetch shops with essential counts included
         const shops = await prisma.shop.findMany({ 
             where,
             take: limitValue,
             skip: skipValue,
-            orderBy
+            orderBy,
+            include: {
+                _count: {
+                    select: {
+                        followers: true,
+                        products: true
+                    }
+                }
+            }
         });
 
         let userId = null;
@@ -374,25 +381,19 @@ export const getShops = async (req, res, next) => {
         }
         
         const shopsWithCounts = await Promise.all(shops.map(async (shop) => {
-            const productsCount = await prisma.product.count({ where: { shopId: shop.id } });
-            const followersCount = await prisma.shop.findUnique({
-                where: { id: shop.id },
-                include: { _count: { select: { followers: true } } }
-            }).then(s => s?._count?.followers || 0);
-            const followingCount = await prisma.shop.count({ where: { followers: { some: { id: shop.ownerId } } } });
             let isFollowing = false;
             if (userId) {
-                const rel = await prisma.shop.findFirst({ where: { id: shop.id, followers: { some: { id: userId } } }, select: { id: true } });
+                const rel = await prisma.shop.findFirst({ 
+                    where: { id: shop.id, followers: { some: { id: userId } } }, 
+                    select: { id: true } 
+                });
                 isFollowing = Boolean(rel);
             }
             
             return {
                 ...shop,
-                productsCount,
-                followersCount,
-                followingCount,
-                rating: shop.rating || 0,
-                reviewsCount: shop.reviewsCount || 0,
+                productsCount: shop._count?.products || 0,
+                followersCount: shop._count?.followers || 0,
                 isFollowing
             };
         }));
@@ -410,6 +411,7 @@ export const getShops = async (req, res, next) => {
             }
         });
     } catch (error) {
+        logger.error("Error in getShops:", error);
         next(error);
     }
 };

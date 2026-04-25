@@ -50,8 +50,10 @@ export const trackActivity = async (req, res, next) => {
 export const getPersonalizedFeed = async (req, res, next) => {
     try {
         const userId = req.user ? (req.user.id || req.user._id?.toString()) : null;
-        const { limit = 12 } = req.query;
+        const { limit = 12, page = 1 } = req.query;
         const limitValue = parseInt(limit) || 12;
+        const pageValue = parseInt(page) || 1;
+        const skipValue = (pageValue - 1) * limitValue;
 
         const commonInclude = { 
             shop: { 
@@ -65,14 +67,26 @@ export const getPersonalizedFeed = async (req, res, next) => {
             } 
         };
 
+        const totalCount = await prisma.product.count();
+
         if (!userId) {
             const products = await prisma.product.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limitValue,
+                skip: skipValue,
                 include: commonInclude
             });
             
-            return res.status(200).json({ success: true, data: products });
+            return res.status(200).json({ 
+                success: true, 
+                data: products,
+                pagination: {
+                    total: totalCount,
+                    page: pageValue,
+                    limit: limitValue,
+                    pages: Math.ceil(totalCount / limitValue)
+                }
+            });
         }
 
         // Optimized: Get top categories based on user activity
@@ -101,7 +115,8 @@ export const getPersonalizedFeed = async (req, res, next) => {
             orderBy: [
                 { createdAt: 'desc' }
             ],
-            take: limitValue * 2 // Fetch more to allow some in-memory re-ranking if needed
+            take: limitValue * 10, // Fetch more to allow some in-memory re-ranking if needed
+            skip: skipValue
         });
 
         // Simple scoring in-memory for the final selection
@@ -123,7 +138,13 @@ export const getPersonalizedFeed = async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            data: finalProducts
+            data: finalProducts,
+            pagination: {
+                total: totalCount,
+                page: pageValue,
+                limit: limitValue,
+                pages: Math.ceil(totalCount / limitValue)
+            }
         });
     } catch (error) {
         logger.error("Error in getPersonalizedFeed:", error);
