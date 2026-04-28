@@ -1,4 +1,5 @@
 import { cache } from '../config/redis.js';
+import logger from '../utils/logger.js';
 
 /**
  * Cache middleware for GET requests
@@ -23,11 +24,11 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
       const cachedData = await cache.get(cacheKey);
 
       if (cachedData) {
-        console.log(`Cache HIT: ${cacheKey}`);
+        logger.debug(`Cache HIT: ${cacheKey}`);
         return res.status(200).json(JSON.parse(cachedData));
       }
 
-      console.log(`Cache MISS: ${cacheKey}`);
+      logger.debug(`Cache MISS: ${cacheKey}`);
 
       // Store original res.json function
       const originalJson = res.json.bind(res);
@@ -37,7 +38,7 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
         // Only cache successful responses
         if (res.statusCode >= 200 && res.statusCode < 300) {
           cache.set(cacheKey, data, ttl).catch(err => {
-            console.error('Failed to cache response:', err);
+            logger.error('Failed to cache response:', { message: err.message });
           });
         }
         return originalJson(data);
@@ -45,7 +46,7 @@ export const cacheMiddleware = (ttl = 300, keyGenerator = null) => {
 
       next();
     } catch (error) {
-      console.error('Cache middleware error:', error);
+      logger.error('Cache middleware error:', { message: error.message });
       next();
     }
   };
@@ -62,19 +63,19 @@ export const invalidateCache = async (pattern) => {
     // Since SCAN is not directly available in the REST API, we'll track cache keys
     // For now, we'll just log the invalidation request
     // In production, consider using Redis Sets to track cache keys by category
-    console.log(`Cache invalidation requested for pattern: ${pattern}`);
+    logger.debug(`Cache invalidation requested for pattern: ${pattern}`);
     
     // If pattern is a specific key, delete it directly
     if (!pattern.includes('*')) {
       await cache.del(pattern);
-      console.log(`Cache key deleted: ${pattern}`);
+      logger.debug(`Cache key deleted: ${pattern}`);
     } else {
       // For wildcard patterns, we need to track keys in sets
-      // This is a limitation of REST-based Redis - consider implementing key tracking
-      console.warn(`Wildcard cache invalidation not fully supported. Pattern: ${pattern}`);
+      // This is a limitation of REST-based Redis — consider implementing key tracking
+      logger.warn(`Wildcard cache invalidation not fully supported. Pattern: ${pattern}`);
     }
   } catch (error) {
-    console.error('Cache invalidation error:', error);
+    logger.error('Cache invalidation error:', { message: error.message });
   }
 };
 
@@ -86,9 +87,9 @@ export const invalidateCache = async (pattern) => {
 export const invalidateCacheKey = async (key) => {
   try {
     await cache.del(key);
-    console.log(`Cache key invalidated: ${key}`);
+    logger.debug(`Cache key invalidated: ${key}`);
   } catch (error) {
-    console.error('Cache key invalidation error:', error);
+    logger.error('Cache key invalidation error:', { message: error.message });
   }
 };
 

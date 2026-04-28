@@ -54,7 +54,7 @@ export const signUp = async (req, res, next) => {
                 html: template.html
             });
         } catch (emailError) {
-            
+            logger.warn('Failed to send verification email', { email, message: emailError.message });
         }
 
         const { password: _p, refreshToken: _r, verificationOTP: _o, verificationOTPExpires: _e, ...safeUser } = created;
@@ -89,9 +89,7 @@ export const changePassword = async (req, res, next) => {
         
         const isMatch = user && user.password ? await bcrypt.compare(currentPassword, user.password) : false;
         if (!isMatch) {
-            const error = new Error('Current password is incorrect');
-            error.statusCode = 401;
-            throw error;
+            throw new UnauthenticatedError('Current password is incorrect');
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -114,21 +112,19 @@ export const signIn = async (req, res, next) => {
         const {email, password} = req.body;
 
         const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (!existingUser) {
-            throw new NotFoundError("User does not exist");
-        }
 
-        const isMatch = existingUser.password ? await bcrypt.compare(password, existingUser.password) : false;
-        if (!isMatch) {
-            const error = new Error("Incorrect password");
-            error.statusCode = 400;
-            throw error;
+        // Compare even when user not found to prevent timing attacks
+        const isMatch = existingUser?.password
+            ? await bcrypt.compare(password, existingUser.password)
+            : false;
+
+        // Use a single generic message to prevent email enumeration
+        if (!existingUser || !isMatch) {
+            throw new UnauthenticatedError("Invalid email or password");
         }
 
         if (!existingUser.isVerified) {
-            const error = new Error("Please verify your email before signing in");
-            error.statusCode = 401;
-            throw error;
+            throw new UnauthenticatedError("Please verify your email before signing in");
         }
 
         const tokens = generateTokens(existingUser.id);
@@ -162,11 +158,25 @@ export const signIn = async (req, res, next) => {
 
 export const signOut = async (req, res, next) => {
    try {
+    const refreshToken = req.cookies.refreshToken;
+
+    // Invalidate the refresh token in the database to prevent reuse after sign-out
+    if (refreshToken) {
+        try {
+            await prisma.user.updateMany({
+                where: { refreshToken },
+                data: { refreshToken: null }
+            });
+        } catch (dbError) {
+            logger.warn('Could not clear refresh token from DB on sign-out', { message: dbError.message });
+        }
+    }
+
     res.clearCookie("refreshToken", {
         httpOnly: true,
         sameSite: 'strict',
         secure: NODE_ENV === "production"
-    })
+    });
 
     res.status(200).json({
         success: true,
@@ -183,9 +193,7 @@ export const refresh = async (req, res, next) => {
         const refreshToken = req.cookies.refreshToken;
 
         if (!refreshToken) {
-            const error = new Error('Refresh token not found');
-            error.statusCode = 401;
-            throw error;
+            throw new UnauthenticatedError('Refresh token not found');
         }
 
         const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
@@ -193,9 +201,7 @@ export const refresh = async (req, res, next) => {
         const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
         if (!user || user.refreshToken !== refreshToken) {
-            const error = new Error('Invalid refresh token');
-            error.statusCode = 401;
-            throw error;
+            throw new UnauthenticatedError('Invalid refresh token');
         }
 
         const tokens = generateTokens(user.id);
@@ -234,11 +240,11 @@ export const googleAuthSuccess = async (req, res, next) => {
                 }
             });
         } else {
-            await prisma.user.update({
+            // update() returns the updated record — no need for a second findUnique
+            user = await prisma.user.update({
                 where: { id: user.id },
                 data: { googleId: req.user.googleId || req.user.id, isVerified: true }
             });
-            user = await prisma.user.findUnique({ where: { id: user.id } });
         }
         const tokens = generateTokens(user.id);
         await prisma.user.update({ where: { id: user.id }, data: { refreshToken: tokens.refreshToken } });
@@ -272,10 +278,12 @@ export const forgotPassword = async (req, res, next) => {
         const { email } = req.body;
         const user = await prisma.user.findUnique({ where: { email } });
 
+        // Always return success regardless — prevents email enumeration attacks
         if (!user) {
-            const error = new Error("User with this email does not exist");
-            error.statusCode = 404;
-            throw error;
+            return res.status(200).json({
+                success: true,
+                message: "If an account with this email exists, a password reset link has been sent."
+            });
         }
 
         const resetToken = crypto.randomBytes(32).toString("hex");
@@ -313,9 +321,7 @@ export const forgotPassword = async (req, res, next) => {
                 }
             });
             
-            const error = new Error("Email could not be sent");
-            error.statusCode = 500;
-            throw error;
+            throw new AppError("Email could not be sent", 500);
         }
     } catch (error) {
         next(error);
@@ -337,9 +343,7 @@ export const resetPassword = async (req, res, next) => {
         });
 
         if (!user) {
-            const error = new Error("Invalid or expired reset token");
-            error.statusCode = 400;
-            throw error;
+            throw new ValidationError("Invalid or expired reset token");
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -374,9 +378,7 @@ export const verifyEmail = async (req, res, next) => {
         });
 
         if (!user) {
-            const error = new Error("Invalid or expired verification code");
-            error.statusCode = 400;
-            throw error;
+            throw new ValidationError("Invalid or expired verification code");
         }
 
         await prisma.user.update({
@@ -398,7 +400,7 @@ export const verifyEmail = async (req, res, next) => {
                 html: template.html
             });
         } catch (emailError) {
-            
+            logger.warn('Failed to send welcome email', { email: user.email, message: emailError.message });
         }
 
         res.status(200).json({
@@ -424,11 +426,11 @@ export const githubAuthSuccess = async (req, res, next) => {
                 }
             });
         } else {
-            await prisma.user.update({
+            // update() returns the updated record — no need for a second findUnique
+            user = await prisma.user.update({
                 where: { id: user.id },
                 data: { githubId: req.user.githubId || req.user.id, isVerified: true }
             });
-            user = await prisma.user.findUnique({ where: { id: user.id } });
         }
         const tokens = generateTokens(user.id);
         await prisma.user.update({ where: { id: user.id }, data: { refreshToken: tokens.refreshToken } });

@@ -5,6 +5,7 @@ import prisma from '../database/postgresql.js';
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL } from './env.js';
 import { sendEmail } from './nodemailer.js';
 import { getWelcomeEmailTemplate } from '../utils/emailTemplates.js';
+import logger from '../utils/logger.js';
 
 // Google Strategy
 passport.use(new GoogleStrategy({
@@ -23,11 +24,11 @@ passport.use(new GoogleStrategy({
             user = await prisma.user.findUnique({ where: { email } });
 
             if (user) {
-                await prisma.user.update({
+                // update() returns the updated record — avoids a redundant findUnique
+                user = await prisma.user.update({
                     where: { id: user.id },
                     data: { googleId: profile.id }
                 });
-                user = await prisma.user.findUnique({ where: { id: user.id } });
             } else {
                 user = await prisma.user.create({
                     data: {
@@ -47,7 +48,7 @@ passport.use(new GoogleStrategy({
                         html: template.html
                     });
                 } catch (emailError) {
-                    
+                    logger.warn('Failed to send welcome email (Google OAuth)', { email: user.email, message: emailError.message });
                 }
             }
         }
@@ -72,11 +73,11 @@ passport.use(new GitHubStrategy({
             user = await prisma.user.findUnique({ where: { email } });
 
             if (user) {
-                await prisma.user.update({
+                // update() returns the updated record — avoids a redundant findUnique
+                user = await prisma.user.update({
                     where: { id: user.id },
                     data: { githubId: profile.id }
                 });
-                user = await prisma.user.findUnique({ where: { id: user.id } });
             } else {
                 user = await prisma.user.create({
                     data: {
@@ -96,7 +97,7 @@ passport.use(new GitHubStrategy({
                         html: template.html
                     });
                 } catch (emailError) {
-                    
+                    logger.warn('Failed to send welcome email (GitHub OAuth)', { email: user.email, message: emailError.message });
                 }
             }
         }
@@ -106,10 +107,6 @@ passport.use(new GitHubStrategy({
     }
 }));
 
-// We don't need full sessions as we use JWT, but passport requires these
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser((id, done) => {
-    prisma.user.findUnique({ where: { id } }).then(user => done(null, user));
-});
 
 export default passport;
+

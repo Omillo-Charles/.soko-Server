@@ -78,7 +78,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // 404 handler for unknown routes
 app.use((req, res) => {
-  console.log(`[404] Route not found: ${req.method} ${req.originalUrl}`);
+  logger.warn(`Route not found: ${req.method} ${req.originalUrl}`, { ip: req.ip });
   res.status(404).json({
     success: false,
     message: `Route ${req.method} ${req.originalUrl} not found on this server`
